@@ -1,4 +1,6 @@
 // agent.js
+import { ethers } from 'ethers';
+
 export async function processEvent(payload, wallet, nftContract) {
   const { to, tokenId } = payload;
 
@@ -48,12 +50,12 @@ export async function processEvent(payload, wallet, nftContract) {
       to,
     };
   } catch (err) {
-    console.error('❌ Agent Error:', {
+    console.error('❌ Transfer failed:', {
       message: err.message,
       code: err.code,
       reason: err.reason,
+      stack: err.stack,
     });
-
     return {
       error: 'Transfer failed',
       reason: err.message,
