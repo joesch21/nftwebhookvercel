@@ -1,31 +1,45 @@
 // server.js
 import express from 'express';
-import { buffer } from 'micro';
-import Stripe from 'stripe';
 import dotenv from 'dotenv';
+import { ethers } from 'ethers';
+import abi from './abi.json' assert { type: 'json' };
+import { processEvent } from './agent.js';
 
 dotenv.config();
 
 const app = express();
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2024-04-10',
-});
-const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+app.use(express.json());
 
-// 🧪 Basic test route to confirm server is up
+const PRIVATE_KEY = process.env.PRIVATE_KEY;
+const RPC_URL = process.env.RPC_URL;
+const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS;
+
+console.log('🔑 ENV CHECK →', {
+  PRIVATE_KEY: PRIVATE_KEY ? '[loaded]' : '❌ MISSING',
+  RPC_URL,
+  CONTRACT_ADDRESS,
+});
+
+const provider = new ethers.JsonRpcProvider(RPC_URL);
+const wallet = new ethers.Wallet(PRIVATE_KEY, provider);
+const nftContract = new ethers.Contract(CONTRACT_ADDRESS, abi, wallet);
+
 app.get('/', (_, res) => {
-  res.send('✅ Stripe Webhook Server is running on Render');
+  res.send('✅ NFT Sender Webhook Server is live');
 });
 
-// 🧠 Webhook route (Stripe sends POST requests here)
-app.post('/webhook', express.text({ type: '*/*' }), (req, res) => {
-  console.log('🚨 RAW webhook received!');
-  console.log('📝 Body:', req.body);
+app.post('/webhook', async (req, res) => {
+  console.log('📡 Webhook endpoint hit!');
+  console.log('🔍 Payload received:', req.body);
 
-  res.status(200).send('ok');
+  try {
+    const result = await processEvent(req.body, wallet, nftContract);
+    res.status(200).json(result);
+  } catch (err) {
+    console.error('❌ Agent processing failed:', err);
+    res.status(500).json({ error: 'Agent processing failed', details: err.message });
+  }
 });
-
-
 
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
