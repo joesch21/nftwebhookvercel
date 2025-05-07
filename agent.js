@@ -25,11 +25,19 @@ export async function processEvent(payload, wallet, nftContract) {
 
     console.log('🚀 Preparing NFT transfer...');
     const from = await wallet.getAddress();
-    const txRequest = await nftContract.populateTransaction.safeTransferFrom(from, to, id);
-    const gasEstimate = await wallet.estimateGas(txRequest);
+
+    // Encode low-level call manually using the ABI interface
+    const iface = new ethers.Interface(nftContract.interface.fragments);
+    const data = iface.encodeFunctionData('safeTransferFrom', [from, to, id]);
+
+    const gasEstimate = await wallet.estimateGas({
+      to: nftContract.address,
+      data,
+    });
 
     const tx = await wallet.sendTransaction({
-      ...txRequest,
+      to: nftContract.address,
+      data,
       gasLimit: gasEstimate.mul(2),
     });
 
