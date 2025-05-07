@@ -18,37 +18,14 @@ app.get('/', (_, res) => {
 });
 
 // 🧠 Webhook route (Stripe sends POST requests here)
-app.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
-  console.log('🛰️ Webhook hit');
+app.post('/webhook', express.raw({ type: 'application/json' }), (req, res) => {
+  console.log('🛰️ Webhook route hit');
+  console.log('Headers:', req.headers);
+  console.log('Raw body:', req.body.toString());
 
-  const sig = req.headers['stripe-signature'];
-  if (!sig) {
-    console.warn('❌ Missing Stripe signature header');
-    return res.status(400).send('Missing signature');
-  }
-
-  try {
-    const rawBody = req.body.toString('utf8');
-    console.log('📦 Raw body:', rawBody);
-    console.log('🔏 Signature:', sig);
-
-    const event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
-    console.log('✅ Stripe event received:', event.type);
-
-    if (event.type === 'checkout.session.completed') {
-      const session = event.data.object;
-      const wallet = session.metadata?.wallet || '❓ No wallet metadata';
-      console.log(`💰 Session ID: ${session.id}`);
-      console.log(`👛 Wallet: ${wallet}`);
-      // TODO: Mint NFT here
-    }
-
-    res.status(200).json({ received: true });
-  } catch (err) {
-    console.error('❌ Signature verification or parsing failed:', err.message);
-    res.status(400).send(`Webhook Error: ${err.message}`);
-  }
+  res.status(200).send('ok');
 });
+
 
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
