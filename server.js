@@ -2,10 +2,12 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import { ethers } from 'ethers';
-import abi from './abi.json' assert { type: 'json' };
+import fs from 'fs';
 import { processEvent } from './agent.js';
 
 dotenv.config();
+
+const abi = JSON.parse(fs.readFileSync('./abi.json', 'utf-8'));
 
 const app = express();
 app.use(express.json());
