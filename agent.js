@@ -1,5 +1,6 @@
 // agent.js
 import { ethers } from 'ethers';
+import abi from './abi.json';
 
 export async function processEvent(payload, wallet, nftContract) {
   const { to, tokenId } = payload;
@@ -26,8 +27,8 @@ export async function processEvent(payload, wallet, nftContract) {
     console.log('🚀 Preparing NFT transfer...');
     const from = await wallet.getAddress();
 
-    // Encode low-level call manually using the ABI interface
-    const iface = new ethers.Interface(nftContract.interface.fragments);
+    // Encode low-level call manually using raw ABI
+    const iface = new ethers.Interface(abi);
     const data = iface.encodeFunctionData('safeTransferFrom', [from, to, id]);
 
     const gasEstimate = await wallet.estimateGas({
