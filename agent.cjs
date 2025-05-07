@@ -1,10 +1,11 @@
+// agent.cjs
 const { ethers } = require('ethers');
 
 async function processEvent(payload, wallet, nftContract) {
   const { to, tokenId } = payload;
 
   if (!to || typeof tokenId === 'undefined') {
-    return { error: 'Missing \"to\" address or \"tokenId\"' };
+    return { error: 'Missing "to" address or "tokenId"' };
   }
 
   const id = parseInt(tokenId);
@@ -22,13 +23,14 @@ async function processEvent(payload, wallet, nftContract) {
     }
 
     console.log('🚀 Preparing NFT transfer...');
-    const gasEstimate = await nftContract.estimateGas['safeTransferFrom(address,address,uint256)'](
+
+    const gasEstimate = await nftContract.estimateGas.safeTransferFrom(
       await wallet.getAddress(),
       to,
       id
     );
 
-    const tx = await nftContract['safeTransferFrom(address,address,uint256)'](
+    const tx = await nftContract.safeTransferFrom(
       await wallet.getAddress(),
       to,
       id,
@@ -52,7 +54,6 @@ async function processEvent(payload, wallet, nftContract) {
       reason: err.reason,
       stack: err.stack,
     });
-
     return {
       error: 'Transfer failed',
       reason: err.message,
