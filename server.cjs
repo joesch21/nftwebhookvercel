@@ -4,7 +4,7 @@ const { ethers } = require('ethers');
 const bodyParser = require('body-parser');
 const dotenv = require('dotenv');
 const abi = require('./abi.json');
-const { processEvent } = require('./agent.js');
+const { processEvent } = require('./agent.cjs');
 
 dotenv.config();
 
