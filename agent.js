@@ -24,20 +24,12 @@ export async function processEvent(payload, wallet, nftContract) {
     }
 
     console.log('🚀 Initiating NFT transfer...');
-    const gasEstimate = await nftContract.estimateGas['safeTransferFrom(address,address,uint256)'](
-      await wallet.getAddress(),
-      to,
-      id
-    );
+    const from = await wallet.getAddress();
+    const gasEstimate = await nftContract.estimateGas.safeTransferFrom(from, to, id);
 
-    const tx = await nftContract['safeTransferFrom(address,address,uint256)'](
-      await wallet.getAddress(),
-      to,
-      id,
-      {
-        gasLimit: gasEstimate.mul(2),
-      }
-    );
+    const tx = await nftContract.safeTransferFrom(from, to, id, {
+      gasLimit: gasEstimate.mul(2),
+    });
 
     console.log('📤 Transaction submitted:', tx.hash);
     const receipt = await tx.wait();
