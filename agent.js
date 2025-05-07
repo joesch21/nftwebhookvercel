@@ -23,11 +23,13 @@ export async function processEvent(payload, wallet, nftContract) {
       return { status: 'already owned', tokenId: id };
     }
 
-    console.log('🚀 Initiating NFT transfer...');
+    console.log('🚀 Preparing NFT transfer...');
     const from = await wallet.getAddress();
-    const gasEstimate = await nftContract.estimateGas.safeTransferFrom(from, to, id);
+    const txRequest = await nftContract.populateTransaction.safeTransferFrom(from, to, id);
+    const gasEstimate = await wallet.estimateGas(txRequest);
 
-    const tx = await nftContract.safeTransferFrom(from, to, id, {
+    const tx = await wallet.sendTransaction({
+      ...txRequest,
       gasLimit: gasEstimate.mul(2),
     });
 
