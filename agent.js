@@ -1,11 +1,10 @@
 // agent.js
-import { ethers } from 'ethers';
-import abi from './abi.json';
+const { ethers } = require('ethers');
+const abi = require('./abi.json');
 
-export async function processEvent(payload, wallet, nftContract) {
+async function processEvent(payload, wallet, nftContract) {
   const { to, tokenId } = payload;
 
-  // Validate inputs
   if (!to || typeof tokenId === 'undefined') {
     return { error: 'Missing "to" address or "tokenId"' };
   }
@@ -27,8 +26,7 @@ export async function processEvent(payload, wallet, nftContract) {
     console.log('🚀 Preparing NFT transfer...');
     const from = await wallet.getAddress();
 
-    // Encode low-level call manually using exact function signature to avoid ambiguity
-    const iface = new ethers.Interface(abi);
+    const iface = new ethers.utils.Interface(abi);
     const data = iface.encodeFunctionData('safeTransferFrom(address,address,uint256)', [from, to, id]);
 
     const gasEstimate = await wallet.estimateGas({
@@ -67,3 +65,5 @@ export async function processEvent(payload, wallet, nftContract) {
     };
   }
 }
+
+module.exports = { processEvent };
