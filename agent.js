@@ -1,43 +1,65 @@
-// server.js
-const express = require('express');
 const { ethers } = require('ethers');
-const bodyParser = require('body-parser');
-const dotenv = require('dotenv');
-const abi = require('./abi.json');
-const { processEvent } = require('./agent.js');
 
-dotenv.config();
+async function processEvent(payload, wallet, nftContract) {
+  const { to, tokenId } = payload;
 
-const app = express();
-app.use(bodyParser.json());
+  if (!to || typeof tokenId === 'undefined') {
+    return { error: 'Missing \"to\" address or \"tokenId\"' };
+  }
 
-const PRIVATE_KEY = process.env.PRIVATE_KEY;
-const RPC_URL = process.env.RPC_URL;
-const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS;
-
-console.log('🔑 ENV CHECK →', {
-  PRIVATE_KEY: PRIVATE_KEY ? '[loaded]' : '❌ MISSING',
-  RPC_URL,
-  CONTRACT_ADDRESS,
-});
-
-const provider = new ethers.JsonRpcProvider(RPC_URL);
-const wallet = new ethers.Wallet(PRIVATE_KEY, provider);
-const nftContract = new ethers.Contract(CONTRACT_ADDRESS, abi, wallet);
-
-app.post('/webhook', async (req, res) => {
-  console.log('📡 Webhook endpoint hit!');
-  console.log('🔍 Payload received:', req.body);
+  const id = parseInt(tokenId);
+  if (!ethers.isAddress(to) || isNaN(id)) {
+    return { error: 'Invalid address or tokenId' };
+  }
 
   try {
-    const result = await processEvent(req.body, wallet, nftContract);
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ error: 'Internal server error', reason: err.message });
-  }
-});
+    console.log(`🧠 Agent: Checking tokenId ${id} for wallet ${to}`);
 
-const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => {
-  console.log(`🚀 Server listening on port ${PORT}`);
-});
+    const currentOwner = await nftContract.ownerOf(id);
+    if (currentOwner.toLowerCase() === to.toLowerCase()) {
+      console.log('⚠️ Token already owned by recipient.');
+      return { status: 'already owned', tokenId: id };
+    }
+
+    console.log('🚀 Preparing NFT transfer...');
+    const gasEstimate = await nftContract.estimateGas['safeTransferFrom(address,address,uint256)'](
+      await wallet.getAddress(),
+      to,
+      id
+    );
+
+    const tx = await nftContract['safeTransferFrom(address,address,uint256)'](
+      await wallet.getAddress(),
+      to,
+      id,
+      { gasLimit: gasEstimate.mul(2) }
+    );
+
+    console.log('📤 Transaction submitted:', tx.hash);
+    const receipt = await tx.wait();
+
+    return {
+      status: 'transferred',
+      txHash: tx.hash,
+      blockNumber: receipt.blockNumber,
+      tokenId: id,
+      to,
+    };
+  } catch (err) {
+    console.error('❌ Transfer failed:', {
+      message: err.message,
+      code: err.code,
+      reason: err.reason,
+      stack: err.stack,
+    });
+
+    return {
+      error: 'Transfer failed',
+      reason: err.message,
+      tokenId: id,
+      to,
+    };
+  }
+}
+
+module.exports = { processEvent };
