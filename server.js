@@ -18,13 +18,13 @@ app.get('/', (_, res) => {
 });
 
 // 🧠 Webhook route (Stripe sends POST requests here)
-app.post('/webhook', express.raw({ type: 'application/json' }), (req, res) => {
-  console.log('🛰️ Webhook route hit');
-  console.log('Headers:', req.headers);
-  console.log('Raw body:', req.body.toString());
+app.post('/webhook', express.text({ type: '*/*' }), (req, res) => {
+  console.log('🚨 RAW webhook received!');
+  console.log('📝 Body:', req.body);
 
   res.status(200).send('ok');
 });
+
 
 
 const PORT = process.env.PORT || 8080;
