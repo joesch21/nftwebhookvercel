@@ -1,4 +1,4 @@
-// File: /api/webhook.js (for Vercel)
+// File: /api/webhook.js
 import { buffer } from 'micro';
 import Stripe from 'stripe';
 
@@ -12,34 +12,44 @@ export const config = {
 };
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).end('Method Not Allowed');
-
-  const buf = await buffer(req);
-  const sig = req.headers['stripe-signature'];
+  if (req.method !== 'POST') {
+    return res.status(405).end('Method Not Allowed');
+  }
 
   let event;
 
   try {
+    const buf = await buffer(req);
+    const sig = req.headers['stripe-signature'];
+
+    // Verify event came from Stripe
     event = stripe.webhooks.constructEvent(buf, sig, endpointSecret);
   } catch (err) {
-    console.error('Webhook signature verification failed.', err.message);
+    console.error('❌ Webhook verification failed:', err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  // Handle the event
+  console.log('🔥 Webhook received:', event.type);
+
+  // Handle specific event types
   switch (event.type) {
     case 'checkout.session.completed': {
       const session = event.data.object;
 
-      // 🎯 Trigger dummy NFT minting logic (replace with actual smart contract call)
-      console.log('✅ Payment received for session:', session.id);
-      console.log('👛 Wallet address (passed via metadata):', session.metadata.wallet);
+      const wallet = session?.metadata?.wallet || '❓ No wallet in metadata';
 
-      // TODO: call your NFT minting function here
+      console.log('✅ Payment received for session:', session.id);
+      console.log('👛 Wallet address (metadata):', wallet);
+
+      // 👉 TODO: Call NFT minting logic here
+      // await mintNFT(wallet);
+
       break;
     }
+
     default:
-      console.log(`Unhandled event type ${event.type}`);
+      console.log(`⚠️ Unhandled event type: ${event.type}`);
+      break;
   }
 
   res.status(200).json({ received: true });
