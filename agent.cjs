@@ -1,4 +1,3 @@
-// agent.cjs
 const { ethers } = require('ethers');
 
 async function processEvent(payload, wallet, nftContract) {
@@ -25,10 +24,11 @@ async function processEvent(payload, wallet, nftContract) {
     console.log('🚀 Preparing NFT transfer...');
 
     const from = await wallet.getAddress();
-    const gasEstimate = await nftContract.estimateGas['safeTransferFrom(address,address,uint256)'](from, to, id);
+    const emptyData = '0x';
 
-    const tx = await nftContract['safeTransferFrom(address,address,uint256)'](from, to, id, {
-      gasLimit: gasEstimate * 2n,
+    const gasEstimate = await nftContract.estimateGas.safeTransferFrom(from, to, id, emptyData);
+    const tx = await nftContract.safeTransferFrom(from, to, id, emptyData, {
+      gasLimit: gasEstimate.mul(2),
     });
 
     console.log('📤 Transaction submitted:', tx.hash);
