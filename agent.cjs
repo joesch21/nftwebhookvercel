@@ -1,7 +1,9 @@
+// agent.cjs
+
 let signalStatus = 'undefined';
 
 function getSignalStatus() {
-  return { status: signalStatus };
+  return { color: signalStatus === 'signal on' ? 'green' : 'red' };
 }
 
 async function processEvent(payload) {
@@ -11,4 +13,3 @@ async function processEvent(payload) {
 }
 
 module.exports = { processEvent, getSignalStatus };
-
