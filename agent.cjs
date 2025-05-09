@@ -1,14 +1,14 @@
-// agent.cjs
-let signalOn = false;
-
-function processEvent(payload) {
-  console.log('🧠 Agent activated!');
-  signalOn = true;
-  return { status: 'signal on' };
-}
+let signalStatus = 'undefined';
 
 function getSignalStatus() {
-  return { signalOn };
+  return { status: signalStatus };
+}
+
+async function processEvent(payload) {
+  console.log('🧠 Agent activated!');
+  signalStatus = 'signal on';
+  return { status: signalStatus };
 }
 
 module.exports = { processEvent, getSignalStatus };
+
