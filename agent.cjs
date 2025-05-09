@@ -1,6 +1,11 @@
-const { ethers } = require('ethers');
+// agent.cjs
 
-async function processEvent(payload, wallet, nftContract) {
+// Placeholder version since we're shifting to frontend signaling.
+// No longer attempts on-chain transfer.
+
+let signalColor = 'red'; // Global signal state
+
+async function processEvent(payload) {
   const { to, tokenId } = payload;
 
   if (!to || typeof tokenId === 'undefined') {
@@ -8,53 +13,24 @@ async function processEvent(payload, wallet, nftContract) {
   }
 
   const id = parseInt(tokenId);
-  if (!ethers.isAddress(to) || isNaN(id)) {
-    return { error: 'Invalid address or tokenId' };
-  }
 
-  try {
-    console.log(`🧠 Agent: Checking tokenId ${id} for wallet ${to}`);
+  console.log(`🧠 Agent: Received tokenId ${id} for address ${to}`);
+  console.log('💡 Triggering frontend signal (red → green)...');
 
-    const currentOwner = await nftContract.ownerOf(id);
-    if (currentOwner.toLowerCase() === to.toLowerCase()) {
-      console.log('⚠️ Token already owned by recipient.');
-      return { status: 'already owned', tokenId: id };
-    }
+  // Simulate a signal trigger
+  signalColor = 'green';
 
-    console.log('🚀 Preparing NFT transfer...');
-
-    const from = await wallet.getAddress();
-    const emptyData = '0x';
-
-    const gasEstimate = await nftContract.estimateGas.safeTransferFrom(from, to, id, emptyData);
-    const tx = await nftContract.safeTransferFrom(from, to, id, emptyData, {
-      gasLimit: gasEstimate.mul(2),
-    });
-
-    console.log('📤 Transaction submitted:', tx.hash);
-    const receipt = await tx.wait();
-
-    return {
-      status: 'transferred',
-      txHash: tx.hash,
-      blockNumber: receipt.blockNumber,
-      tokenId: id,
-      to,
-    };
-  } catch (err) {
-    console.error('❌ Transfer failed:', {
-      message: err.message,
-      code: err.code,
-      reason: err.reason,
-      stack: err.stack,
-    });
-    return {
-      error: 'Transfer failed',
-      reason: err.message,
-      tokenId: id,
-      to,
-    };
-  }
+  return {
+    status: 'triggered',
+    signal: 'change-light',
+    color: signalColor,
+    tokenId: id,
+    to,
+  };
 }
 
-module.exports = { processEvent };
+function getSignalStatus() {
+  return { color: signalColor };
+}
+
+module.exports = { processEvent, getSignalStatus };

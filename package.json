@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "Backend to send NFT via POST trigger on BNB Testnet",
   "main": "server.cjs",
-  "type": "module",
   "scripts": {
     "start": "node server.cjs"
   },
