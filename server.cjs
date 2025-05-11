@@ -10,12 +10,18 @@ const { processEvent, getSignalStatus } = require('./agent.cjs')
 const app = express()
 const PORT = process.env.PORT || 5000
 
-// Middleware
-app.use(cors())
+// ✅ Configure CORS to allow frontend requests
+app.use(cors({
+  origin: 'https://gcc-wallet.vercel.app',
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}))
+
+// ✅ JSON + Body parsing
 app.use(express.json())
 app.use(bodyParser.json())
 
-// Serve frontend files (optional)
+// Optional: Serve frontend static files (if needed)
 app.use(express.static(path.join(__dirname, 'public')))
 
 
