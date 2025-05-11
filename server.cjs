@@ -1,42 +1,68 @@
-// server.cjs
+require('dotenv').config()
+const express = require('express')
+const bodyParser = require('body-parser')
+const path = require('path')
+const cors = require('cors')
+const { Wallet } = require('ethers')
+const admin = require('./firebase-admin')
+const { processEvent, getSignalStatus } = require('./agent.cjs')
 
-const express = require('express');
-const bodyParser = require('body-parser');
-const path = require('path');
-const { processEvent, getSignalStatus } = require('./agent.cjs');
+const app = express()
+const PORT = process.env.PORT || 5000
 
-require('dotenv').config();
+// Middleware
+app.use(cors())
+app.use(express.json())
+app.use(bodyParser.json())
 
-const app = express();
-const PORT = process.env.PORT || 10000;
+// Serve frontend files (optional)
+app.use(express.static(path.join(__dirname, 'public')))
 
-// Serve static files (frontend HTML/CSS/JS)
-app.use(express.static(path.join(__dirname, 'public')));
 
-// Parse JSON payloads
-app.use(bodyParser.json());
-
-// Webhook endpoint
-app.post('/webhook', async (req, res) => {
-  console.log('📡 Webhook endpoint hit!');
-  console.log('🔍 Payload received:', req.body);
+// 🔐 /create-wallet (Firebase + wallet gen)
+app.post('/create-wallet', async (req, res) => {
+  const idToken = req.headers.authorization?.split('Bearer ')[1]
+  if (!idToken) return res.status(401).json({ error: 'Missing auth token' })
 
   try {
-    const result = await processEvent(req.body);
-    res.status(200).json(result);
+    const decoded = await admin.auth().verifyIdToken(idToken)
+    console.log('✅ Firebase user verified:', decoded.uid)
+
+    const wallet = Wallet.createRandom()
+
+    res.json({
+      address: wallet.address,
+      privateKey: wallet.privateKey,
+    })
+
   } catch (err) {
-    console.error('❌ Webhook handling failed:', err);
-    res.status(500).json({ error: 'Internal Server Error', reason: err.message });
+    console.error('❌ Firebase token verification failed:', err)
+    res.status(403).json({ error: 'Unauthorized' })
   }
-});
+})
 
-// Frontend polling route
+
+// 📡 Stripe Webhook handler
+app.post('/webhook', async (req, res) => {
+  console.log('📡 Webhook endpoint hit!')
+  console.log('🔍 Payload received:', req.body)
+
+  try {
+    const result = await processEvent(req.body)
+    res.status(200).json(result)
+  } catch (err) {
+    console.error('❌ Webhook handling failed:', err)
+    res.status(500).json({ error: 'Internal Server Error', reason: err.message })
+  }
+})
+
+// 🧭 Signal poll endpoint
 app.get('/signal', (req, res) => {
-  const signal = getSignalStatus();
-  res.json(signal);
-});
+  const signal = getSignalStatus()
+  res.json(signal)
+})
 
-// Start server
+// ✅ Start server
 app.listen(PORT, () => {
-  console.log(`🚀 Server listening on port ${PORT}`);
-});
+  console.log(`🚀 Server listening on port ${PORT}`)
+})
