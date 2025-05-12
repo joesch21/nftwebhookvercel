@@ -1,9 +1,9 @@
-// File: /api/create_checkout_session.cjs
-import Stripe from 'stripe'
+// File: api/create_checkout_session.cjs
+const Stripe = require('stripe')
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 
-export default async function handler(req, res) {
+module.exports = async function (req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' })
   }
@@ -21,7 +21,7 @@ export default async function handler(req, res) {
       success_url: `${process.env.CLIENT_URL}/success`,
       cancel_url: `${process.env.CLIENT_URL}/cancel`,
       metadata: {
-        wallet: walletAddress, // 👈 This is used in the webhook
+        wallet: walletAddress,
       },
       line_items: [
         {
