@@ -1,6 +1,10 @@
 // File: api/create_checkout_session.cjs
 const Stripe = require('stripe')
 
+if (!process.env.STRIPE_SECRET_KEY || !process.env.CLIENT_URL) {
+  throw new Error('❌ Missing required STRIPE_SECRET_KEY or CLIENT_URL environment variables')
+}
+
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 
 module.exports = async function (req, res) {
@@ -10,8 +14,8 @@ module.exports = async function (req, res) {
 
   const { walletAddress } = req.body
 
-  if (!walletAddress) {
-    return res.status(400).json({ error: 'Missing wallet address' })
+  if (!walletAddress || typeof walletAddress !== 'string') {
+    return res.status(400).json({ error: 'Missing or invalid wallet address' })
   }
 
   try {
@@ -21,7 +25,7 @@ module.exports = async function (req, res) {
       success_url: `${process.env.CLIENT_URL}/success`,
       cancel_url: `${process.env.CLIENT_URL}/cancel`,
       metadata: {
-        wallet: walletAddress,
+        wallet: walletAddress, // Used later in the webhook
       },
       line_items: [
         {
@@ -38,9 +42,10 @@ module.exports = async function (req, res) {
       ],
     })
 
+    console.log(`✅ Stripe Checkout session created for wallet: ${walletAddress}`)
     return res.status(200).json({ url: session.url })
   } catch (error) {
-    console.error('❌ Stripe session creation failed:', error)
-    return res.status(500).json({ error: 'Internal Server Error' })
+    console.error('❌ Stripe session creation failed:', error.message)
+    return res.status(500).json({ error: 'Stripe session creation failed' })
   }
 }

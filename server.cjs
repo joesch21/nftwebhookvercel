@@ -1,4 +1,6 @@
 // server.cjs
+require('dotenv').config()
+
 const express = require('express')
 const bodyParser = require('body-parser')
 const cors = require('cors')
@@ -18,6 +20,7 @@ app.use(express.json())
 app.post('/api/webhook', express.raw({ type: 'application/json' }), webhook)
 
 // Other routes
+
 app.post('/api/create_wallet', createWallet)
 app.post('/api/create_checkout_session', createCheckoutSession)
 

@@ -6,14 +6,29 @@ const { ethers } = require('ethers')
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET
 
-// Blockchain setup
-const provider = new ethers.JsonRpcProvider(process.env.RPC_URL)
-const signer = new ethers.Wallet(process.env.PRIVATE_KEY, provider)
-const nftContract = new ethers.Contract(
-  process.env.SIGNAL_CONTRACT,
-  ['function mintTo(address recipient) external returns (uint256)'],
-  signer
-)
+let nftContract
+
+try {
+  // Validate critical env vars first
+  const { RPC_URL, PRIVATE_KEY, SIGNAL_CONTRACT } = process.env
+
+  if (!RPC_URL || !PRIVATE_KEY || !SIGNAL_CONTRACT) {
+    throw new Error('❌ Missing one or more required environment variables')
+  }
+
+  const provider = new ethers.JsonRpcProvider(RPC_URL)
+  const signer = new ethers.Wallet(PRIVATE_KEY, provider)
+
+  nftContract = new ethers.Contract(
+    SIGNAL_CONTRACT,
+    ['function mintTo(address recipient) external returns (uint256)'],
+    signer
+  )
+} catch (err) {
+  console.error('❌ Contract initialization error:', err.message)
+  // We'll throw here so the server startup fails fast and clean
+  throw err
+}
 
 async function mintNFT(walletAddress) {
   const tx = await nftContract.mintTo(walletAddress)
@@ -21,7 +36,6 @@ async function mintNFT(walletAddress) {
   console.log(`🎉 NFT minted to ${walletAddress}`)
 }
 
-// Main webhook handler
 module.exports = async function (req, res) {
   if (req.method !== 'POST') {
     return res.status(405).end('Method Not Allowed')
@@ -39,32 +53,26 @@ module.exports = async function (req, res) {
 
   console.log('🔥 Webhook received:', event.type)
 
-  switch (event.type) {
-    case 'checkout.session.completed': {
-      const session = event.data.object
-      const wallet = session?.metadata?.wallet || session?.metadata?.walletAddress
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object
+    const wallet = session?.metadata?.wallet || session?.metadata?.walletAddress
 
-      if (!wallet) {
-        console.error('❌ No wallet address found in Stripe metadata')
-        return res.status(400).send('Missing wallet address')
-      }
-
-      console.log('✅ Payment completed for session:', session.id)
-      console.log('👛 Minting NFT to wallet:', wallet)
-
-      try {
-        await mintNFT(wallet)
-      } catch (err) {
-        console.error('❌ Error minting NFT:', err)
-        return res.status(500).send('NFT minting failed')
-      }
-
-      break
+    if (!wallet) {
+      console.error('❌ No wallet address found in Stripe metadata')
+      return res.status(400).send('Missing wallet address')
     }
 
-    default:
-      console.log(`⚠️ Unhandled event type: ${event.type}`)
-      break
+    console.log('✅ Payment completed for session:', session.id)
+    console.log('👛 Minting NFT to wallet:', wallet)
+
+    try {
+      await mintNFT(wallet)
+    } catch (err) {
+      console.error('❌ Error minting NFT:', err)
+      return res.status(500).send('NFT minting failed')
+    }
+  } else {
+    console.log(`⚠️ Unhandled event type: ${event.type}`)
   }
 
   res.status(200).json({ received: true })
