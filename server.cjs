@@ -1,4 +1,3 @@
-// File: server.cjs
 require('dotenv').config()
 
 const express = require('express')
@@ -7,21 +6,21 @@ const createWallet = require('./api/create_wallet.cjs')
 const createCheckoutSession = require('./api/create_checkout_session.cjs')
 const webhook = require('./api/webhook.cjs')
 const testTransaction = require('./api/test_transaction.cjs')
-app.post('/api/test_transaction', testTransaction)
 
-const app = express()
+const app = express() // ✅ App is initialized first
 
 app.use(cors())
 
-// ✅ Stripe webhook must use raw body parser before JSON middleware
+// Stripe webhook needs raw body first
 app.post('/api/webhook', express.raw({ type: 'application/json' }), webhook)
 
-// ✅ Now JSON parser for all other API routes
+// All other API routes use JSON parser
 app.use(express.json())
 
-// Normal backend routes
+// ✅ Now we register routes
 app.post('/api/create_wallet', createWallet)
 app.post('/api/create_checkout_session', createCheckoutSession)
+app.post('/api/test_transaction', testTransaction)
 
 const PORT = process.env.PORT || 3000
 app.listen(PORT, () => {
