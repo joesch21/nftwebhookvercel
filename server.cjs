@@ -1,8 +1,7 @@
-// server.cjs
 require('dotenv').config()
 
 const express = require('express')
-const bodyParser = require('body-parser')
+const bodyParser = require('body-parser') // optional if unused elsewhere
 const cors = require('cors')
 
 const createWallet = require('./api/create_wallet.cjs')
@@ -13,13 +12,11 @@ const app = express()
 
 app.use(cors())
 
-// JSON parser for all routes *except* webhook
-app.use(express.json())
-
-// Raw parser only for the Stripe webhook
+// ✅ Raw parser FIRST — required for Stripe webhook signature verification
 app.post('/api/webhook', express.raw({ type: 'application/json' }), webhook)
 
-// Other routes
+// ✅ THEN JSON parser for all other routes
+app.use(express.json())
 
 app.post('/api/create_wallet', createWallet)
 app.post('/api/create_checkout_session', createCheckoutSession)
