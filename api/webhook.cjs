@@ -10,7 +10,7 @@ const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET
 const provider = new ethers.JsonRpcProvider(process.env.RPC_URL)
 const signer = new ethers.Wallet(process.env.PRIVATE_KEY, provider)
 const nftContract = new ethers.Contract(
-  process.env.NFT_CONTRACT_ADDRESS,
+  process.env.SIGNAL_CONTRACT,
   ['function mintTo(address recipient) external returns (uint256)'],
   signer
 )
