@@ -6,6 +6,8 @@ const cors = require('cors')
 const createWallet = require('./api/create_wallet.cjs')
 const createCheckoutSession = require('./api/create_checkout_session.cjs')
 const webhook = require('./api/webhook.cjs')
+const testTransaction = require('./api/test_transaction.cjs')
+app.post('/api/test_transaction', testTransaction)
 
 const app = express()
 
