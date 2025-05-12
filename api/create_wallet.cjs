@@ -1,15 +1,17 @@
 // File: api/create_wallet.cjs
 const { Wallet } = require('ethers')
 const admin = require('firebase-admin')
+const { readFileSync } = require('fs')
+const path = require('path')
 
-// Initialize Firebase Admin
+// ✅ Load service account credentials from Render Secret File
+const serviceAccountPath = '/etc/secrets/firebase-service-account.json'
+const serviceAccount = JSON.parse(readFileSync(serviceAccountPath, 'utf8'))
+
+// Initialize Firebase Admin SDK
 if (!admin.apps.length) {
   admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-    }),
+    credential: admin.credential.cert(serviceAccount),
   })
 }
 
