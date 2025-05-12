@@ -43,8 +43,14 @@ module.exports = async function (req, res) {
     const doc = await docRef.get()
 
     if (doc.exists) {
+      const existing = doc.data()
+      if (!existing || !existing.address) {
+        console.error(`❌ Wallet record for UID ${userId} is malformed`)
+        return res.status(500).json({ error: 'Corrupt wallet record' })
+      }
+
       console.log(`📦 Wallet already exists for UID: ${userId}`)
-      return res.status(200).json({ address: doc.data().address })
+      return res.status(200).json({ address: existing.address })
     }
 
     const newWallet = Wallet.createRandom()
@@ -59,7 +65,7 @@ module.exports = async function (req, res) {
 
   } catch (err) {
     console.error('❌ Wallet creation error:', err.message)
-    console.error('👉 Raw token:', token)
+    console.error('👉 Raw token (trimmed):', token.slice(0, 20) + '...')
     console.error(err.stack)
     return res.status(500).json({ error: err.message || 'Wallet creation failed' })
   }
