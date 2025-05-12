@@ -1,4 +1,4 @@
-// File: /api/create-checkout-session.js
+// File: /api/create_checkout_session.cjs
 import Stripe from 'stripe'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)

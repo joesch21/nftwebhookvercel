@@ -1,8 +1,8 @@
-// File: /api/create-wallet.js
-import { ethers } from 'ethers'
-import admin from 'firebase-admin'
-import path from 'path'
-import { readFileSync } from 'fs'
+// File: api/create_wallet.cjs
+const { Wallet } = require('ethers')
+const admin = require('firebase-admin')
+const path = require('path')
+const { readFileSync } = require('fs')
 
 // Prevent re-initialization in serverless environments
 if (!admin.apps.length) {
@@ -17,7 +17,7 @@ if (!admin.apps.length) {
 
 const db = admin.firestore()
 
-export default async function handler(req, res) {
+module.exports = async function (req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' })
   }
@@ -39,7 +39,7 @@ export default async function handler(req, res) {
     }
 
     // Generate and store new wallet
-    const newWallet = ethers.Wallet.createRandom()
+    const newWallet = Wallet.createRandom()
 
     await docRef.set({
       address: newWallet.address,

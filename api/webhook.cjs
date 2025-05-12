@@ -1,7 +1,7 @@
-// File: /api/webhook.js
-import { buffer } from 'micro'
-import Stripe from 'stripe'
-import { ethers } from 'ethers'
+// File: api/webhook.cjs
+const { buffer } = require('micro')
+const Stripe = require('stripe')
+const { ethers } = require('ethers')
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET
@@ -21,13 +21,8 @@ async function mintNFT(walletAddress) {
   console.log(`🎉 NFT minted to ${walletAddress}`)
 }
 
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-}
-
-export default async function handler(req, res) {
+// Main webhook handler
+module.exports = async function (req, res) {
   if (req.method !== 'POST') {
     return res.status(405).end('Method Not Allowed')
   }

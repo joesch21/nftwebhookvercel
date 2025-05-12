@@ -10,11 +10,16 @@ const webhook = require('./api/webhook.cjs')
 const app = express()
 
 app.use(cors())
-app.use(bodyParser.json())
-app.use('/api/webhook', bodyParser.raw({ type: 'application/json' })) // raw body for Stripe
+
+// JSON parser for all routes *except* webhook
+app.use(express.json())
+
+// Raw parser only for the Stripe webhook
+app.post('/api/webhook', express.raw({ type: 'application/json' }), webhook)
+
+// Other routes
 app.post('/api/create_wallet', createWallet)
 app.post('/api/create_checkout_session', createCheckoutSession)
-app.post('/api/webhook', webhook)
 
 const PORT = process.env.PORT || 3000
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`))
