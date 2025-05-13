@@ -1,4 +1,3 @@
-// File: api/webhook.cjs
 const { buffer } = require('micro')
 const Stripe = require('stripe')
 const { ethers } = require('ethers')
@@ -9,9 +8,7 @@ const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET
 let nftContract
 
 try {
-  // Validate critical env vars first
   const { RPC_URL, PRIVATE_KEY, SIGNAL_CONTRACT } = process.env
-
   if (!RPC_URL || !PRIVATE_KEY || !SIGNAL_CONTRACT) {
     throw new Error('❌ Missing one or more required environment variables')
   }
@@ -19,21 +16,22 @@ try {
   const provider = new ethers.JsonRpcProvider(RPC_URL)
   const signer = new ethers.Wallet(PRIVATE_KEY, provider)
 
+  // ✅ Updated ABI to accept tokenId
   nftContract = new ethers.Contract(
     SIGNAL_CONTRACT,
-    ['function mintTo(address recipient) external returns (uint256)'],
+    ['function mintTo(address recipient, uint256 tokenId) external'],
     signer
   )
 } catch (err) {
   console.error('❌ Contract initialization error:', err.message)
-  // We'll throw here so the server startup fails fast and clean
   throw err
 }
 
-async function mintNFT(walletAddress) {
-  const tx = await nftContract.mintTo(walletAddress)
+// ✅ Updated function to accept tokenId
+async function mintNFT(walletAddress, tokenId) {
+  const tx = await nftContract.mintTo(walletAddress, tokenId)
   await tx.wait()
-  console.log(`🎉 NFT minted to ${walletAddress}`)
+  console.log(`🎉 NFT token ${tokenId} minted to ${walletAddress}`)
 }
 
 module.exports = async function (req, res) {
@@ -56,17 +54,18 @@ module.exports = async function (req, res) {
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object
     const wallet = session?.metadata?.wallet || session?.metadata?.walletAddress
+    const tokenId = session?.metadata?.tokenId
 
-    if (!wallet) {
-      console.error('❌ No wallet address found in Stripe metadata')
-      return res.status(400).send('Missing wallet address')
+    if (!wallet || tokenId === undefined) {
+      console.error('❌ Missing wallet or tokenId in metadata')
+      return res.status(400).send('Missing wallet or tokenId')
     }
 
-    console.log('✅ Payment completed for session:', session.id)
-    console.log('👛 Minting NFT to wallet:', wallet)
+    console.log('✅ Payment complete for session:', session.id)
+    console.log('👛 Minting token', tokenId, 'to wallet:', wallet)
 
     try {
-      await mintNFT(wallet)
+      await mintNFT(wallet, tokenId)
     } catch (err) {
       console.error('❌ Error minting NFT:', err)
       return res.status(500).send('NFT minting failed')

@@ -12,10 +12,14 @@ module.exports = async function (req, res) {
     return res.status(405).json({ error: 'Method Not Allowed' })
   }
 
-  const { walletAddress } = req.body
+  const { walletAddress, tokenId } = req.body
 
   if (!walletAddress || typeof walletAddress !== 'string') {
     return res.status(400).json({ error: 'Missing or invalid wallet address' })
+  }
+
+  if (tokenId === undefined || !['0', '1'].includes(String(tokenId))) {
+    return res.status(400).json({ error: 'Missing or invalid tokenId' })
   }
 
   try {
@@ -25,15 +29,16 @@ module.exports = async function (req, res) {
       success_url: `${process.env.CLIENT_URL}/success`,
       cancel_url: `${process.env.CLIENT_URL}/cancel`,
       metadata: {
-        wallet: walletAddress, // Used later in the webhook
+        wallet: walletAddress,
+        tokenId: String(tokenId),
       },
       line_items: [
         {
           price_data: {
             currency: 'usd',
             product_data: {
-              name: 'GCC Membership NFT',
-              description: 'Includes automatic wallet mint and GCC bonus tokens',
+              name: `GCC NFT - Token ${tokenId}`,
+              description: `Membership NFT Token ID ${tokenId} with wallet delivery`,
             },
             unit_amount: 10000, // $100.00 in cents
           },
@@ -42,7 +47,7 @@ module.exports = async function (req, res) {
       ],
     })
 
-    console.log(`✅ Stripe Checkout session created for wallet: ${walletAddress}`)
+    console.log(`✅ Stripe Checkout session created for wallet ${walletAddress} (token ${tokenId})`)
     return res.status(200).json({ url: session.url })
   } catch (error) {
     console.error('❌ Stripe session creation failed:', error.message)
