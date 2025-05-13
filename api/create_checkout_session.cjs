@@ -50,7 +50,7 @@ module.exports = async function (req, res) {
               name: `GCC NFT - Token ${tokenId}`,
               description: `Membership NFT Token ID ${tokenId} with wallet delivery`,
             },
-            unit_amount: 1, // $1 
+            unit_amount: 100, // $1 in cents
           },
           quantity: 1,
         },
