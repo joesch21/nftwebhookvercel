@@ -9,8 +9,8 @@ const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 let nftContract;
 
 try {
-  const { RPC_URL, PRIVATE_KEY, SIGNAL_CONTRACT } = process.env;
-  if (!RPC_URL || !PRIVATE_KEY || !SIGNAL_CONTRACT) {
+  const { RPC_URL, PRIVATE_KEY, SIGNAL_CONTRACT, OWNER_ADDRESS } = process.env;
+  if (!RPC_URL || !PRIVATE_KEY || !SIGNAL_CONTRACT || !OWNER_ADDRESS) {
     throw new Error('❌ Missing one or more required environment variables');
   }
 
@@ -19,7 +19,7 @@ try {
 
   nftContract = new ethers.Contract(
     SIGNAL_CONTRACT,
-    ['function mintTo(address recipient, uint256 tokenId) external'],
+    ['function safeTransferFrom(address from, address to, uint256 tokenId) external'],
     signer
   );
 } catch (err) {
@@ -27,10 +27,10 @@ try {
   throw err;
 }
 
-async function mintNFT(walletAddress, tokenId) {
-  const tx = await nftContract.mintTo(walletAddress, tokenId);
+async function transferNFT(walletAddress, tokenId) {
+  const tx = await nftContract.safeTransferFrom(process.env.OWNER_ADDRESS, walletAddress, tokenId);
   await tx.wait();
-  console.log(`🎉 NFT token ${tokenId} minted to ${walletAddress}`);
+  console.log(`🎉 NFT token ${tokenId} transferred to ${walletAddress}`);
 }
 
 module.exports = async function (req, res) {
@@ -67,13 +67,13 @@ module.exports = async function (req, res) {
     }
 
     console.log('✅ Payment completed for session:', session.id);
-    console.log(`👛 Minting token ${tokenId} to wallet ${wallet}`);
+    console.log(`👛 Transferring token ${tokenId} to wallet ${wallet}`);
 
     try {
-      await mintNFT(wallet, tokenId);
+      await transferNFT(wallet, tokenId);
     } catch (err) {
-      console.error('❌ Error minting NFT:', err);
-      return res.status(500).send('NFT minting failed');
+      console.error('❌ Error transferring NFT:', err);
+      return res.status(500).send('NFT transfer failed');
     }
   } else {
     console.log(`⚠️ Unhandled event type: ${event.type}`);
