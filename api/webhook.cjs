@@ -4,8 +4,8 @@ const { ethers } = require('ethers');
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
+// ✅ Initialize contract once at startup
 let nftContract;
-
 try {
   const { RPC_URL, PRIVATE_KEY, NFT_CONTRACT_ADDRESS, OWNER_ADDRESS } = process.env;
 
@@ -16,12 +16,13 @@ try {
   const provider = new ethers.JsonRpcProvider(RPC_URL);
   const signer = new ethers.Wallet(PRIVATE_KEY, provider);
 
-  // ✅ Setup the correct NFT contract
   nftContract = new ethers.Contract(
     NFT_CONTRACT_ADDRESS,
     ['function safeTransferFrom(address from, address to, uint256 tokenId) external'],
     signer
   );
+
+  console.log('✅ NFT contract initialized successfully');
 } catch (err) {
   console.error('❌ Contract initialization error:', err.message);
   throw err;
@@ -29,17 +30,25 @@ try {
 
 // ✅ NFT Transfer Logic
 async function transferNFT(walletAddress, tokenId) {
-  const tx = await nftContract.safeTransferFrom(process.env.OWNER_ADDRESS, walletAddress, tokenId);
-  await tx.wait();
-  console.log(`🎉 NFT token ${tokenId} transferred to ${walletAddress} (tx: ${tx.hash})`);
+  try {
+    const tx = await nftContract.safeTransferFrom(process.env.OWNER_ADDRESS, walletAddress, tokenId);
+    await tx.wait();
+    console.log(`🎉 NFT token ${tokenId} transferred to ${walletAddress} (tx: ${tx.hash})`);
+  } catch (error) {
+    console.error(`❌ NFT transfer failed:`, error.reason || error.message || error);
+    throw error;
+  }
 }
 
 module.exports = async function (req, res) {
+  console.log('🚨 Webhook endpoint hit');
+
   const sig = req.headers['stripe-signature'];
   let event;
 
   try {
-    event = stripe.webhooks.constructEvent(req.rawBody, sig, endpointSecret);
+    // ✅ Use req.body (NOT rawBody) if express.raw() is set up in server.cjs
+    event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
   } catch (err) {
     console.error('❌ Stripe signature verification failed:', err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
@@ -60,13 +69,12 @@ module.exports = async function (req, res) {
 
     try {
       await transferNFT(wallet, tokenId);
-      return res.status(200).send('NFT transfer successful');
+      return res.status(200).send('✅ NFT transfer successful');
     } catch (err) {
-      console.error('❌ Error transferring NFT:', err);
-      return res.status(500).send('NFT transfer failed');
+      return res.status(500).send('❌ NFT transfer failed');
     }
   }
 
   console.log(`⚠️ Unhandled event type: ${event.type}`);
-  res.status(200).send('Unhandled event type');
+  res.status(200).send('⚠️ Event type not handled');
 };
