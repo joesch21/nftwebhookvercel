@@ -57,13 +57,19 @@ module.exports = async function (req, res) {
 
     const newWallet = Wallet.createRandom()
 
+    // Save only the address (not private key or mnemonic)
     await docRef.set({
       address: newWallet.address,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     })
 
     console.log(`🎉 New wallet created for UID: ${userId} → ${newWallet.address}`)
-    return res.status(200).json({ address: newWallet.address })
+
+    // Return address and mnemonic (only once!)
+    return res.status(200).json({
+      address: newWallet.address,
+      mnemonic: newWallet.mnemonic.phrase,
+    })
 
   } catch (err) {
     console.error('❌ Wallet creation error:', err.message)
