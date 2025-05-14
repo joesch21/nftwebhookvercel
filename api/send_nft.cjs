@@ -1,66 +1,63 @@
-// File: api/create_checkout_session.cjs
-const Stripe = require('stripe')
+// File: api/send_nft.cjs
+const admin = require('firebase-admin');
+const { ethers } = require('ethers');
 
-if (!process.env.STRIPE_SECRET_KEY || !process.env.CLIENT_URL) {
-  console.error('❌ Missing STRIPE_SECRET_KEY or CLIENT_URL', {
-    STRIPE_SECRET_KEY_SET: !!process.env.STRIPE_SECRET_KEY,
-    CLIENT_URL: process.env.CLIENT_URL,
-  })
-  throw new Error('❌ Missing required STRIPE_SECRET_KEY or CLIENT_URL environment variables')
+// ✅ Load env vars
+const { RPC_URL, PRIVATE_KEY, SIGNAL_CONTRACT, OWNER_ADDRESS } = process.env;
+
+if (!RPC_URL || !PRIVATE_KEY || !SIGNAL_CONTRACT || !OWNER_ADDRESS) {
+  throw new Error('❌ Missing required env vars: RPC_URL, PRIVATE_KEY, SIGNAL_CONTRACT, OWNER_ADDRESS');
 }
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
+// ✅ Setup blockchain connection
+const provider = new ethers.JsonRpcProvider(RPC_URL);
+const signer = new ethers.Wallet(PRIVATE_KEY, provider);
 
+const nftContract = new ethers.Contract(
+  SIGNAL_CONTRACT,
+  ['function safeTransferFrom(address from, address to, uint256 tokenId) external'],
+  signer
+);
+
+// ✅ Express handler
 module.exports = async function (req, res) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method Not Allowed' })
+    return res.status(405).send('Method Not Allowed');
   }
 
-  const { walletAddress, tokenId } = req.body
-
-  console.log('📥 Incoming request to create checkout session')
-  console.log('🧾 Wallet Address:', walletAddress)
-  console.log('🆔 Token ID:', tokenId)
-
-  if (!walletAddress || typeof walletAddress !== 'string') {
-    console.warn('⚠️ Invalid or missing wallet address')
-    return res.status(400).json({ error: 'Missing or invalid wallet address' })
-  }
-
-  if (tokenId === undefined || !['0', '1'].includes(String(tokenId))) {
-    console.warn('⚠️ Invalid or missing tokenId')
-    return res.status(400).json({ error: 'Missing or invalid tokenId' })
-  }
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.replace('Bearer ', '').trim();
 
   try {
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      mode: 'payment',
-      success_url: `${process.env.CLIENT_URL}/success`,
-      cancel_url: `${process.env.CLIENT_URL}/cancel`,
-      metadata: {
-        wallet: walletAddress,
-        tokenId: String(tokenId),
-      },
-      line_items: [
-        {
-          price_data: {
-            currency: 'usd',
-            product_data: {
-              name: `GCC NFT - Token ${tokenId}`,
-              description: `Membership NFT Token ID ${tokenId} with wallet delivery`,
-            },
-            unit_amount: 10000, // 100 in cents
-          },
-          quantity: 1,
-        },
-      ],
-    })
+    const decoded = await admin.auth().verifyIdToken(token);
+    const uid = decoded.uid;
+    const email = decoded.email;
+    const { tokenId } = req.body;
 
-    console.log(`✅ Stripe Checkout session created for wallet ${walletAddress} (token ${tokenId})`)
-    return res.status(200).json({ url: session.url })
-  } catch (error) {
-    console.error('❌ Stripe session creation failed:', error.message)
-    return res.status(500).json({ error: 'Stripe session creation failed' })
+    if (typeof tokenId !== 'number') {
+      return res.status(400).json({ error: 'Invalid tokenId' });
+    }
+
+    const doc = await admin.firestore().collection('wallets').doc(uid).get();
+    const wallet = doc.exists ? doc.data().address : null;
+
+    if (!wallet) {
+      return res.status(404).json({ error: 'Wallet not found for user' });
+    }
+
+    console.log(`📤 Transferring tokenId ${tokenId} to ${wallet}`);
+
+    const tx = await nftContract.safeTransferFrom(OWNER_ADDRESS, wallet, tokenId);
+    await tx.wait();
+
+    console.log(`✅ NFT #${tokenId} sent to ${wallet}`);
+
+    return res.status(200).json({
+      message: `NFT #${tokenId} transferred to ${wallet}`,
+      txHash: tx.hash,
+    });
+  } catch (err) {
+    console.error('❌ send_nft error:', err.message);
+    return res.status(500).json({ error: 'NFT transfer failed', detail: err.message });
   }
-}
+};

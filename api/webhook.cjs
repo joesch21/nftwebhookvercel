@@ -9,8 +9,8 @@ const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 let nftContract;
 
 try {
-  const { RPC_URL, PRIVATE_KEY, SIGNAL_CONTRACT, OWNER_ADDRESS } = process.env;
-  if (!RPC_URL || !PRIVATE_KEY || !SIGNAL_CONTRACT || !OWNER_ADDRESS) {
+  const { RPC_URL, PRIVATE_KEY, NFT_CONTRACT_ADDRESS, OWNER_ADDRESS } = process.env;
+  if (!RPC_URL || !PRIVATE_KEY || !NFT_CONTRACT_ADDRESS || !OWNER_ADDRESS) {
     throw new Error('❌ Missing one or more required environment variables');
   }
 
@@ -18,7 +18,7 @@ try {
   const signer = new ethers.Wallet(PRIVATE_KEY, provider);
 
   nftContract = new ethers.Contract(
-    SIGNAL_CONTRACT,
+    NFT_CONTRACT_ADDRESS,
     ['function safeTransferFrom(address from, address to, uint256 tokenId) external'],
     signer
   );
