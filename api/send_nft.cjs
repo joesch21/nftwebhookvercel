@@ -16,20 +16,23 @@ const signer = new ethers.Wallet(PRIVATE_KEY, provider);
 // ✅ Sanity check: signer must match owner
 if (signer.address.toLowerCase() !== OWNER_ADDRESS.toLowerCase()) {
   console.error(`❌ PRIVATE_KEY does not control OWNER_ADDRESS:
-    Signer: ${signer.address}
-    Expected: ${OWNER_ADDRESS}`);
+  Signer: ${signer.address}
+  Expected: ${OWNER_ADDRESS}`);
   throw new Error('Signer mismatch: PRIVATE_KEY does not match OWNER_ADDRESS');
 }
 
 const nftContract = new ethers.Contract(
   NFT_CONTRACT_ADDRESS,
-  ['function safeTransferFrom(address from, address to, uint256 tokenId) external'],
+  ['function safeTransferFrom(address from, address to, uint256 tokenId) external', 'function ownerOf(uint256 tokenId) view returns (address)'],
   signer
 );
 
 // ✅ Express handler
 module.exports = async function (req, res) {
+  console.log(`📨 [send_nft] Incoming POST request`);
+
   if (req.method !== 'POST') {
+    console.warn('❌ Method not allowed:', req.method);
     return res.status(405).send('Method Not Allowed');
   }
 
@@ -42,8 +45,12 @@ module.exports = async function (req, res) {
     const email = decoded.email;
     const { tokenId } = req.body;
 
+    console.log(`👤 Authenticated user: ${email} (UID: ${uid})`);
+    console.log(`🔢 Raw tokenId from request:`, tokenId);
+
     const parsedTokenId = parseInt(tokenId, 10);
     if (isNaN(parsedTokenId)) {
+      console.warn('⚠️ Invalid tokenId:', tokenId);
       return res.status(400).json({ error: 'Invalid tokenId format' });
     }
 
@@ -51,12 +58,23 @@ module.exports = async function (req, res) {
     const wallet = doc.exists ? doc.data().address : null;
 
     if (!wallet || !ethers.isAddress(wallet)) {
+      console.warn('⚠️ Invalid wallet address for UID:', uid, '→', wallet);
       return res.status(400).json({ error: 'Invalid or missing wallet address' });
     }
 
-    console.log(`📤 Attempting NFT transfer: tokenId=${parsedTokenId} → ${wallet}`);
+    console.log(`📦 Will attempt to send NFT #${parsedTokenId} → ${wallet}`);
+
+    let currentOwner;
+    try {
+      currentOwner = await nftContract.ownerOf(parsedTokenId);
+      console.log(`🎯 Current owner of token #${parsedTokenId} is: ${currentOwner}`);
+    } catch (ownerCheckError) {
+      console.error(`❌ Could not check current owner:`, ownerCheckError.message);
+    }
 
     try {
+      console.log(`🚀 Sending from ${OWNER_ADDRESS} → ${wallet} | Token ID: ${parsedTokenId}`);
+
       const tx = await nftContract.safeTransferFrom(OWNER_ADDRESS, wallet, parsedTokenId);
       await tx.wait();
 
@@ -67,7 +85,7 @@ module.exports = async function (req, res) {
         txHash: tx.hash,
       });
     } catch (contractError) {
-      console.error('❌ Transfer transaction failed:', contractError.reason || contractError.message);
+      console.error('❌ Transfer transaction failed:', contractError.reason || contractError.message || contractError);
       return res.status(500).json({
         error: 'Blockchain transaction failed',
         detail: contractError.reason || contractError.message,
