@@ -5,22 +5,28 @@ const cors = require('cors');
 
 const app = express();
 
-// ✅ Middleware setup
-app.use(cors()); // Always first
+// ✅ CORS should be applied first
+app.use(cors());
 
-// ✅ Stripe webhook MUST come before JSON body parser
-app.post('/api/webhook', express.raw({ type: 'application/json' }), require('./api/webhook.cjs'));
+// ✅ Stripe webhook route — MUST use raw body parser
+app.post(
+  '/api/webhook',
+  express.raw({ type: 'application/json' }),
+  require('./api/webhook.cjs')
+);
 
-// ✅ JSON body parser for everything else
+// ✅ Parse JSON for all other routes
 app.use(express.json());
 
-// ✅ API route imports
+// ✅ Import API route handlers
 const createWallet = require('./api/create_wallet.cjs');
 const createCheckoutSession = require('./api/create_checkout_session.cjs');
 const sendNFT = require('./api/send_nft.cjs');
 const checkPurchase = require('./api/check_purchase.cjs');
+const checkAvailability = require('./api/available_nfts.cjs');
 
-// ✅ Normal API routes
+// ✅ API Routes
+app.get('/api/available_nfts', checkAvailability);
 app.post('/api/create_wallet', createWallet);
 app.post('/api/create_checkout_session', createCheckoutSession);
 app.post('/api/send_nft', sendNFT);
