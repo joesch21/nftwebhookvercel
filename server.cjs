@@ -6,7 +6,6 @@ const cors = require('cors')
 const createWallet = require('./api/create_wallet.cjs')
 const createCheckoutSession = require('./api/create_checkout_session.cjs')
 const webhook = require('./api/webhook.cjs')
-const testTransaction = require('./api/test_transaction.cjs')
 const sendNFT = require('./api/send_nft.cjs')
 const checkPurchase = require('./api/check_purchase.cjs')
 
@@ -23,7 +22,6 @@ app.use(express.json())
 // ✅ API routes
 app.post('/api/create_wallet', createWallet)
 app.post('/api/create_checkout_session', createCheckoutSession)
-app.post('/api/test_transaction', testTransaction)
 app.post('/api/send_nft', sendNFT)
 app.post('/api/check_purchase', checkPurchase)
 
