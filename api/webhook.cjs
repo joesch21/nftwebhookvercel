@@ -40,6 +40,7 @@ async function transferNFT(walletAddress, tokenId) {
   }
 }
 
+// ✅ Webhook Handler
 module.exports = async function (req, res) {
   console.log('🚨 Webhook endpoint hit');
 
@@ -47,7 +48,7 @@ module.exports = async function (req, res) {
   let event;
 
   try {
-    // ✅ Use req.body (NOT rawBody) if express.raw() is set up in server.cjs
+    // ✅ Assumes express.raw() middleware is correctly set in server.cjs
     event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
   } catch (err) {
     console.error('❌ Stripe signature verification failed:', err.message);
@@ -56,12 +57,16 @@ module.exports = async function (req, res) {
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
-    const wallet = session.metadata?.walletAddress;
-    const tokenId = parseInt(session.metadata?.tokenId || '0', 10);
+    const wallet = session.metadata?.wallet || session.metadata?.walletAddress;
+    const tokenIdRaw = session.metadata?.tokenId;
+    const tokenId = parseInt(tokenIdRaw, 10);
 
-    if (!wallet || isNaN(tokenId)) {
+    console.log(`📦 Parsed tokenId: ${tokenId} from raw value: ${tokenIdRaw}`);
+    console.log(`📦 Wallet: ${wallet}`);
+
+    if (!wallet || wallet.length !== 42 || isNaN(tokenId) || tokenId < 0) {
       console.error('❌ Invalid wallet or tokenId in metadata:', session.metadata);
-      return res.status(400).send('Missing wallet or tokenId');
+      return res.status(400).send('Missing or malformed wallet/tokenId');
     }
 
     console.log(`✅ Stripe payment confirmed for session ${session.id}`);
