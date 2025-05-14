@@ -3,10 +3,10 @@ const admin = require('firebase-admin');
 const { ethers } = require('ethers');
 
 // ✅ Load env vars
-const { RPC_URL, PRIVATE_KEY, SIGNAL_CONTRACT, OWNER_ADDRESS } = process.env;
+const { RPC_URL, PRIVATE_KEY, NFT_CONTRACT_ADDRESS, OWNER_ADDRESS } = process.env;
 
-if (!RPC_URL || !PRIVATE_KEY || !SIGNAL_CONTRACT || !OWNER_ADDRESS) {
-  throw new Error('❌ Missing required env vars: RPC_URL, PRIVATE_KEY, SIGNAL_CONTRACT, OWNER_ADDRESS');
+if (!RPC_URL || !PRIVATE_KEY || !NFT_CONTRACT_ADDRESS || !OWNER_ADDRESS) {
+  throw new Error('❌ Missing required env vars: RPC_URL, PRIVATE_KEY, NFT_CONTRACT_ADDRESS, OWNER_ADDRESS');
 }
 
 // ✅ Setup blockchain connection
@@ -14,7 +14,7 @@ const provider = new ethers.JsonRpcProvider(RPC_URL);
 const signer = new ethers.Wallet(PRIVATE_KEY, provider);
 
 const nftContract = new ethers.Contract(
-  SIGNAL_CONTRACT,
+  NFT_CONTRACT_ADDRESS,
   ['function safeTransferFrom(address from, address to, uint256 tokenId) external'],
   signer
 );

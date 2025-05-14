@@ -1,83 +1,68 @@
-// File: api/webhook.cjs
-const { buffer } = require('micro');
-const Stripe = require('stripe');
+// File: api/send_nft.cjs
+const admin = require('firebase-admin');
 const { ethers } = require('ethers');
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+// ✅ Load env vars
+const { RPC_URL, PRIVATE_KEY, NFT_CONTRACT_ADDRESS, OWNER_ADDRESS } = process.env;
 
-let nftContract;
-
-try {
-  const { RPC_URL, PRIVATE_KEY, NFT_CONTRACT_ADDRESS, OWNER_ADDRESS } = process.env;
-  if (!RPC_URL || !PRIVATE_KEY || !NFT_CONTRACT_ADDRESS || !OWNER_ADDRESS) {
-    throw new Error('❌ Missing one or more required environment variables');
-  }
-
-  const provider = new ethers.JsonRpcProvider(RPC_URL);
-  const signer = new ethers.Wallet(PRIVATE_KEY, provider);
-
-  nftContract = new ethers.Contract(
-    NFT_CONTRACT_ADDRESS,
-    ['function safeTransferFrom(address from, address to, uint256 tokenId) external'],
-    signer
-  );
-} catch (err) {
-  console.error('❌ Contract initialization error:', err.message);
-  throw err;
+if (!RPC_URL || !PRIVATE_KEY || !NFT_CONTRACT_ADDRESS || !OWNER_ADDRESS) {
+  throw new Error('❌ Missing required env vars: RPC_URL, PRIVATE_KEY, NFT_CONTRACT_ADDRESS, OWNER_ADDRESS');
 }
 
-async function transferNFT(walletAddress, tokenId) {
-  const tx = await nftContract.safeTransferFrom(process.env.OWNER_ADDRESS, walletAddress, tokenId);
-  await tx.wait();
-  console.log(`🎉 NFT token ${tokenId} transferred to ${walletAddress}`);
-}
+// ✅ Setup blockchain connection
+const provider = new ethers.JsonRpcProvider(RPC_URL);
+const signer = new ethers.Wallet(PRIVATE_KEY, provider);
 
+// ✅ Setup NFT contract instance
+const nftContract = new ethers.Contract(
+  NFT_CONTRACT_ADDRESS,
+  ['function safeTransferFrom(address from, address to, uint256 tokenId) external'],
+  signer
+);
+
+// ✅ Express handler
 module.exports = async function (req, res) {
   if (req.method !== 'POST') {
-    return res.status(405).end('Method Not Allowed');
+    return res.status(405).send('Method Not Allowed');
   }
 
-  let event;
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.replace('Bearer ', '').trim();
+
   try {
-    const buf = await buffer(req);
-    const sig = req.headers['stripe-signature'];
+    // 🔒 Verify Firebase ID token
+    const decoded = await admin.auth().verifyIdToken(token);
+    const uid = decoded.uid;
+    const email = decoded.email;
 
-    console.log('🪝 Incoming webhook');
-    console.log('🪝 Headers:', JSON.stringify(req.headers, null, 2));
-    console.log('🪝 Stripe Signature:', sig);
+    // ✅ Get tokenId from request
+    const { tokenId } = req.body;
+    if (!Number.isInteger(tokenId) || tokenId < 0) {
+      return res.status(400).json({ error: 'Invalid tokenId' });
+    }
 
-    event = stripe.webhooks.constructEvent(buf, sig, endpointSecret);
-    console.log('📦 Parsed Event:', JSON.stringify(event, null, 2));
+    // 🔍 Retrieve wallet address from Firestore
+    const doc = await admin.firestore().collection('wallets').doc(uid).get();
+    const wallet = doc.exists ? doc.data().address : null;
+
+    if (!wallet || !ethers.isAddress(wallet)) {
+      return res.status(404).json({ error: 'Valid wallet not found for user' });
+    }
+
+    console.log(`📤 Transferring tokenId ${tokenId} to ${wallet}`);
+
+    // 🚀 Send NFT via contract
+    const tx = await nftContract.safeTransferFrom(OWNER_ADDRESS, wallet, tokenId);
+    await tx.wait();
+
+    console.log(`✅ NFT #${tokenId} successfully transferred to ${wallet}`);
+
+    return res.status(200).json({
+      message: `NFT #${tokenId} transferred to ${wallet}`,
+      txHash: tx.hash,
+    });
   } catch (err) {
-    console.error('❌ Webhook verification failed:', err.message);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
+    console.error('❌ send_nft error:', err);
+    return res.status(500).json({ error: 'NFT transfer failed', detail: err.message });
   }
-
-  console.log('🔥 Webhook event type:', event.type);
-
-  if (event.type === 'checkout.session.completed') {
-    const session = event.data.object;
-    const wallet = session?.metadata?.wallet || session?.metadata?.walletAddress;
-    const tokenId = session?.metadata?.tokenId;
-
-    if (!wallet || tokenId === undefined) {
-      console.error('❌ Missing wallet or tokenId in metadata');
-      return res.status(400).send('Missing wallet or tokenId');
-    }
-
-    console.log('✅ Payment completed for session:', session.id);
-    console.log(`👛 Transferring token ${tokenId} to wallet ${wallet}`);
-
-    try {
-      await transferNFT(wallet, tokenId);
-    } catch (err) {
-      console.error('❌ Error transferring NFT:', err);
-      return res.status(500).send('NFT transfer failed');
-    }
-  } else {
-    console.log(`⚠️ Unhandled event type: ${event.type}`);
-  }
-
-  res.status(200).json({ received: true });
 };
