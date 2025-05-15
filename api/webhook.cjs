@@ -1,10 +1,11 @@
 const Stripe = require('stripe');
-const { ethers } = require('ethers');
+const { ethers, parseUnits } = require('ethers'); // ✅ FIX: Ethers v6 import
 const admin = require('firebase-admin');
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
+// === ENVIRONMENT VARIABLES ===
 const {
   RPC_URL_TESTNET,
   PRIVATE_KEY_TESTNET,
@@ -15,7 +16,6 @@ const {
   OWNER_ADDRESS,
 } = process.env;
 
-// === ENV SANITY CHECK ===
 if (
   !RPC_URL_TESTNET || !PRIVATE_KEY_TESTNET ||
   !RPC_URL_MAINNET || !PRIVATE_KEY_MAINNET ||
@@ -24,14 +24,21 @@ if (
   throw new Error('❌ Missing one or more required environment variables');
 }
 
-// === PROVIDERS & SIGNERS ===
+// === FIREBASE ADMIN INIT ===
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.applicationDefault(),
+  });
+}
+
+// === SETUP PROVIDERS & SIGNERS ===
 const testnetProvider = new ethers.JsonRpcProvider(RPC_URL_TESTNET);
 const mainnetProvider = new ethers.JsonRpcProvider(RPC_URL_MAINNET);
 
 const testnetSigner = new ethers.Wallet(PRIVATE_KEY_TESTNET, testnetProvider);
 const mainnetSigner = new ethers.Wallet(PRIVATE_KEY_MAINNET, mainnetProvider);
 
-// === CONTRACT INSTANCES ===
+// === CONTRACTS ===
 const nftContract = new ethers.Contract(
   NFT_CONTRACT_ADDRESS,
   ['function safeTransferFrom(address from, address to, uint256 tokenId) external'],
@@ -44,14 +51,14 @@ const tokenContract = new ethers.Contract(
   mainnetSigner
 );
 
-// === NFT TRANSFER ===
+// === NFT SENDER ===
 async function transferNFT(wallet, tokenId) {
   const tx = await nftContract.safeTransferFrom(OWNER_ADDRESS, wallet, tokenId);
   await tx.wait();
   console.log(`🎨 NFT token ${tokenId} transferred to ${wallet} (tx: ${tx.hash})`);
 }
 
-// === GCC TOKEN REWARD ===
+// === TOKEN REWARDER ===
 async function rewardTokens(wallet) {
   const claimRef = admin.firestore().collection('claims').doc(wallet.toLowerCase());
   const existing = await claimRef.get();
@@ -61,7 +68,7 @@ async function rewardTokens(wallet) {
     return;
   }
 
-  const amount = ethers.utils.parseUnits('100', 18); // 100 GCC
+  const amount = parseUnits('100', 18); // ✅ FIXED for ethers v6
   const tx = await tokenContract.transfer(wallet, amount);
   await tx.wait();
 
@@ -74,7 +81,7 @@ async function rewardTokens(wallet) {
   console.log(`🎁 Sent 100 GCC to ${wallet} (tx: ${tx.hash})`);
 }
 
-// === MAIN WEBHOOK HANDLER ===
+// === STRIPE WEBHOOK HANDLER ===
 module.exports = async function (req, res) {
   console.log('🚨 Webhook endpoint hit');
 
@@ -109,7 +116,7 @@ module.exports = async function (req, res) {
 
       return res.status(200).send('✅ NFT and tokens sent');
     } catch (err) {
-      console.error('❌ Error sending NFT or tokens:', err.message);
+      console.error('❌ Error sending NFT or tokens:', err.message || err);
       return res.status(500).send('NFT or token transfer failed');
     }
   }
