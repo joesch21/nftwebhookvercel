@@ -34,7 +34,10 @@ const mainnetSigner = new ethers.Wallet(PRIVATE_KEY_MAINNET, mainnetProvider);
 // === CONTRACT INSTANCES ===
 const nftContract = new ethers.Contract(
   NFT_CONTRACT_ADDRESS,
-  ['function safeTransferFrom(address from, address to, uint256 tokenId) external'],
+  [
+    'function safeTransferFrom(address from, address to, uint256 tokenId) external',
+    'function ownerOf(uint256 tokenId) view returns (address)',
+  ],
   testnetSigner
 );
 
@@ -46,6 +49,12 @@ const tokenContract = new ethers.Contract(
 
 // === NFT TRANSFER ===
 async function transferNFT(wallet, tokenId) {
+  const currentOwner = await nftContract.ownerOf(tokenId);
+  if (currentOwner.toLowerCase() !== OWNER_ADDRESS.toLowerCase()) {
+    console.warn(`⚠️ NFT #${tokenId} already transferred to ${currentOwner}`);
+    return;
+  }
+
   const tx = await nftContract.safeTransferFrom(OWNER_ADDRESS, wallet, tokenId);
   await tx.wait();
   console.log(`🎨 NFT token ${tokenId} transferred to ${wallet} (tx: ${tx.hash})`);
@@ -109,7 +118,7 @@ module.exports = async function (req, res) {
 
       return res.status(200).send('✅ NFT and tokens sent');
     } catch (err) {
-      console.error('❌ Error sending NFT or tokens:', err.message);
+      console.error('❌ Error sending NFT or tokens:', err.message || err);
       return res.status(500).send('NFT or token transfer failed');
     }
   }
