@@ -1,5 +1,5 @@
 const Stripe = require('stripe');
-const { ethers } = require('ethers');
+const { ethers, parseUnits } = require('ethers');
 const admin = require('firebase-admin');
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -70,7 +70,7 @@ async function rewardTokens(wallet) {
     return;
   }
 
-  const amount = ethers.utils.parseUnits('100', 18); // 100 GCC
+  const amount = ethers.utils.parseUnits('100', 18); 
   const tx = await tokenContract.transfer(wallet, amount);
   await tx.wait();
 
