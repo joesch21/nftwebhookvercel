@@ -70,7 +70,8 @@ async function rewardTokens(wallet) {
     return;
   }
 
-  const amount = ethers.utils.parseUnits('100', 18); 
+  const amount = parseUnits('100', 18);
+ 
   const tx = await tokenContract.transfer(wallet, amount);
   await tx.wait();
 
