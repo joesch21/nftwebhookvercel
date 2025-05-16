@@ -26,6 +26,8 @@ const nftContract = new ethers.Contract(
 
 module.exports = async function (req, res) {
   try {
+    console.log('🔐 [wallet_overview] Hit endpoint');
+
     const authHeader = req.headers.authorization || '';
     const token = authHeader.replace('Bearer ', '').trim();
 
@@ -36,18 +38,33 @@ module.exports = async function (req, res) {
     const wallet = doc.exists ? doc.data().address : null;
 
     if (!wallet || !ethers.isAddress(wallet)) {
+      console.warn('⚠️ Invalid or missing wallet address for UID:', uid);
       return res.status(400).json({ error: 'Invalid wallet address' });
     }
 
-    const balanceRaw = await tokenContract.balanceOf(wallet);
-    const nftBalanceRaw = await nftContract.balanceOf(wallet);
+    console.log(`🔎 Fetching balances for wallet: ${wallet}`);
 
-    const balance = ethers.formatUnits(balanceRaw, 18);
-    const nftCount = nftBalanceRaw.toString();
+    let balance = '0';
+    let nftCount = '0';
+
+    try {
+      const rawBalance = await tokenContract.balanceOf(wallet);
+      balance = ethers.formatUnits(rawBalance, 18);
+    } catch (err) {
+      console.error('❌ Token balanceOf failed:', err.message);
+    }
+
+    try {
+      const rawNfts = await nftContract.balanceOf(wallet);
+      nftCount = rawNfts.toString();
+    } catch (err) {
+      console.error('❌ NFT balanceOf failed:', err.message);
+    }
 
     return res.status(200).json({ wallet, balance, nftCount });
+
   } catch (err) {
-    console.error('❌ Error fetching wallet overview:', err.message);
+    console.error('❌ Error in wallet_overview handler:', err.message || err);
     return res.status(500).json({ error: 'Failed to fetch wallet overview' });
   }
 };
