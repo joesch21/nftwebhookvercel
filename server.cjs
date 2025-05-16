@@ -32,7 +32,8 @@ app.post('/api/create_wallet', createWallet);
 app.post('/api/create_checkout_session', createCheckoutSession);
 app.post('/api/send_nft', sendNFT);
 app.post('/api/check_purchase', checkPurchase);
-app.get('/api/wallet_overview', walletOverview);
+app.post('/api/wallet_overview', walletOverview);
+
 
 // ✅ Start server
 const PORT = process.env.PORT || 3000;
