@@ -20,7 +20,10 @@ const tokenContract = new ethers.Contract(
 
 const nftContract = new ethers.Contract(
   NFT_CONTRACT_ADDRESS,
-  ['function balanceOf(address owner) view returns (uint256)'],
+  [
+    'function balanceOf(address owner) view returns (uint256)',
+    'function tokenOfOwnerByIndex(address owner, uint256 index) view returns (uint256)'
+  ],
   signer
 );
 
@@ -45,7 +48,7 @@ module.exports = async function (req, res) {
     console.log(`🔎 Fetching balances for wallet: ${wallet}`);
 
     let balance = '0';
-    let nftCount = '0';
+    let nftIds = [];
 
     try {
       const rawBalance = await tokenContract.balanceOf(wallet);
@@ -55,14 +58,18 @@ module.exports = async function (req, res) {
     }
 
     try {
-      const rawNfts = await nftContract.balanceOf(wallet);
-      nftCount = rawNfts.toString();
+      const rawCount = await nftContract.balanceOf(wallet);
+      const count = rawCount.toNumber();
+
+      for (let i = 0; i < count; i++) {
+        const tokenId = await nftContract.tokenOfOwnerByIndex(wallet, i);
+        nftIds.push(tokenId.toString());
+      }
     } catch (err) {
-      console.error('❌ NFT balanceOf failed:', err.message);
+      console.error('❌ NFT token enumeration failed:', err.message);
     }
 
-    return res.status(200).json({ wallet, balance, nftCount });
-
+    return res.status(200).json({ wallet, balance, nftIds });
   } catch (err) {
     console.error('❌ Error in wallet_overview handler:', err.message || err);
     return res.status(500).json({ error: 'Failed to fetch wallet overview' });
