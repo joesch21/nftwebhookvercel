@@ -58,16 +58,17 @@ module.exports = async function (req, res) {
     // ✅ Manual NFT ownership check
     const knownTokenIds = [1, 2];
     for (const id of knownTokenIds) {
-      try {
-        const owner = await nftContract.ownerOf(id);
-        if (owner.toLowerCase() === wallet.toLowerCase()) {
-          nftIds.push(id);
-        }
-      } catch (err) {
-        // Silently skip tokens not owned or nonexistent
-        console.log(`ℹ️ Token ${id} not owned or does not exist.`);
-      }
+  try {
+    const owner = await nftContract.ownerOf(id);
+    console.log(`🔎 Token ${id} owner is ${owner}`);
+    if (owner.toLowerCase() === wallet.toLowerCase()) {
+      nftIds.push(id);
     }
+  } catch (err) {
+    console.log(`ℹ️ Token ${id} error:`, err.message);
+  }
+}
+
 
     return res.status(200).json({ wallet, balance, nftIds });
   } catch (err) {
