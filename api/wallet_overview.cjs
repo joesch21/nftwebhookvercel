@@ -9,20 +9,25 @@ const {
   NFT_CONTRACT_ADDRESS,
 } = process.env;
 
-const provider = new ethers.JsonRpcProvider(RPC_URL_MAINNET);
-const signer = new ethers.Wallet(PRIVATE_KEY_MAINNET, provider);
+const mainnetProvider = new ethers.JsonRpcProvider(RPC_URL_MAINNET);
+const testnetProvider = new ethers.JsonRpcProvider(process.env.RPC_URL_TESTNET);
+
+const mainnetSigner = new ethers.Wallet(PRIVATE_KEY_MAINNET, mainnetProvider);
+const testnetSigner = new ethers.Wallet(PRIVATE_KEY_TESTNET, testnetProvider);
+
 
 const tokenContract = new ethers.Contract(
   GCC_TOKEN_CONTRACT,
   ['function balanceOf(address account) view returns (uint256)'],
-  signer
+  mainnetSigner
 );
 
 const nftContract = new ethers.Contract(
   NFT_CONTRACT_ADDRESS,
   ['function ownerOf(uint256 tokenId) view returns (address)'],
-  signer
+  testnetSigner
 );
+
 
 module.exports = async function (req, res) {
   try {
