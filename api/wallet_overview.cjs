@@ -1,33 +1,34 @@
-const { ethers } = require('ethers');
 const admin = require('firebase-admin');
+const { ethers } = require('ethers');
+require('dotenv').config();
 
 const {
-  RPC_URL_TESTNET,
   RPC_URL_MAINNET,
-  NFT_CONTRACT_ADDRESS,
-  GCC_TOKEN_CONTRACT
+  PRIVATE_KEY_MAINNET,
+  GCC_TOKEN_CONTRACT,
+  NFT_CONTRACT_ADDRESS
 } = process.env;
 
-const testnetProvider = new ethers.JsonRpcProvider(RPC_URL_TESTNET);
-const mainnetProvider = new ethers.JsonRpcProvider(RPC_URL_MAINNET);
-
-const nftContract = new ethers.Contract(
-  NFT_CONTRACT_ADDRESS,
-  ['function ownerOf(uint256 tokenId) view returns (address)'],
-  testnetProvider
-);
+const provider = new ethers.JsonRpcProvider(RPC_URL_MAINNET);
+const signer = new ethers.Wallet(PRIVATE_KEY_MAINNET, provider);
 
 const tokenContract = new ethers.Contract(
   GCC_TOKEN_CONTRACT,
-  ['function balanceOf(address account) view returns (uint256)', 'function decimals() view returns (uint8)'],
-  mainnetProvider
+  ['function balanceOf(address account) view returns (uint256)'],
+  signer
+);
+
+const nftContract = new ethers.Contract(
+  NFT_CONTRACT_ADDRESS,
+  ['function balanceOf(address owner) view returns (uint256)'],
+  signer
 );
 
 module.exports = async function (req, res) {
-  const authHeader = req.headers.authorization || '';
-  const token = authHeader.replace('Bearer ', '').trim();
-
   try {
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.replace('Bearer ', '').trim();
+
     const decoded = await admin.auth().verifyIdToken(token);
     const uid = decoded.uid;
 
@@ -35,33 +36,18 @@ module.exports = async function (req, res) {
     const wallet = doc.exists ? doc.data().address : null;
 
     if (!wallet || !ethers.isAddress(wallet)) {
-      return res.status(400).json({ error: 'Wallet not found or invalid' });
+      return res.status(400).json({ error: 'Invalid wallet address' });
     }
 
-    // Check NFT ownership (brute-force for now)
-    const ownedNFTs = [];
-    for (const id of [1, 2]) {
-      try {
-        const owner = await nftContract.ownerOf(id);
-        if (owner.toLowerCase() === wallet.toLowerCase()) {
-          ownedNFTs.push(id);
-        }
-      } catch (err) {
-        // Skip if token doesn't exist or call fails
-      }
-    }
+    const balanceRaw = await tokenContract.balanceOf(wallet);
+    const nftBalanceRaw = await nftContract.balanceOf(wallet);
 
-    const rawBalance = await tokenContract.balanceOf(wallet);
-    const decimals = await tokenContract.decimals();
-    const gccBalance = ethers.formatUnits(rawBalance, decimals);
+    const balance = ethers.formatUnits(balanceRaw, 18);
+    const nftCount = nftBalanceRaw.toString();
 
-    return res.status(200).json({
-      wallet,
-      nfts: ownedNFTs,
-      gccBalance
-    });
+    return res.status(200).json({ wallet, balance, nftCount });
   } catch (err) {
-    console.error('❌ Error fetching wallet overview:', err);
-    return res.status(500).json({ error: 'Failed to retrieve wallet overview' });
+    console.error('❌ Error fetching wallet overview:', err.message);
+    return res.status(500).json({ error: 'Failed to fetch wallet overview' });
   }
 };
