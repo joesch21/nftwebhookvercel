@@ -5,16 +5,17 @@ require('dotenv').config();
 const {
   RPC_URL_MAINNET,
   PRIVATE_KEY_MAINNET,
+  PRIVATE_KEY_TESTNET,
+  RPC_URL_TESTNET,
   GCC_TOKEN_CONTRACT,
   NFT_CONTRACT_ADDRESS,
 } = process.env;
 
 const mainnetProvider = new ethers.JsonRpcProvider(RPC_URL_MAINNET);
-const testnetProvider = new ethers.JsonRpcProvider(process.env.RPC_URL_TESTNET);
+const testnetProvider = new ethers.JsonRpcProvider(RPC_URL_TESTNET);
 
 const mainnetSigner = new ethers.Wallet(PRIVATE_KEY_MAINNET, mainnetProvider);
 const testnetSigner = new ethers.Wallet(PRIVATE_KEY_TESTNET, testnetProvider);
-
 
 const tokenContract = new ethers.Contract(
   GCC_TOKEN_CONTRACT,
@@ -27,7 +28,6 @@ const nftContract = new ethers.Contract(
   ['function ownerOf(uint256 tokenId) view returns (address)'],
   testnetSigner
 );
-
 
 module.exports = async function (req, res) {
   try {
@@ -63,17 +63,16 @@ module.exports = async function (req, res) {
     // ✅ Manual NFT ownership check
     const knownTokenIds = [1, 2];
     for (const id of knownTokenIds) {
-  try {
-    const owner = await nftContract.ownerOf(id);
-    console.log(`🔎 Token ${id} owner is ${owner}`);
-    if (owner.toLowerCase() === wallet.toLowerCase()) {
-      nftIds.push(id);
+      try {
+        const owner = await nftContract.ownerOf(id);
+        console.log(`🔎 Token ${id} owner is ${owner}`);
+        if (owner.toLowerCase() === wallet.toLowerCase()) {
+          nftIds.push(id);
+        }
+      } catch (err) {
+        console.log(`ℹ️ Token ${id} error:`, err.message);
+      }
     }
-  } catch (err) {
-    console.log(`ℹ️ Token ${id} error:`, err.message);
-  }
-}
-
 
     return res.status(200).json({ wallet, balance, nftIds });
   } catch (err) {
