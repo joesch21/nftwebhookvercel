@@ -25,7 +25,11 @@ const tokenContract = new ethers.Contract(
 
 const nftContract = new ethers.Contract(
   NFT_CONTRACT_ADDRESS,
-  ['function ownerOf(uint256 tokenId) view returns (address)'],
+  [
+    'function ownerOf(uint256 tokenId) view returns (address)',
+    'function tokenOfOwnerByIndex(address owner, uint256 index) view returns (uint256)',
+    'function balanceOf(address owner) view returns (uint256)'
+  ],
   testnetSigner
 );
 
@@ -52,7 +56,6 @@ module.exports = async function (req, res) {
     let balance = '0';
     const nftIds = [];
 
-    // ✅ Token balance
     try {
       const rawBalance = await tokenContract.balanceOf(wallet);
       balance = ethers.formatUnits(rawBalance, 18);
@@ -60,18 +63,15 @@ module.exports = async function (req, res) {
       console.error('❌ Token balanceOf failed:', err.message);
     }
 
-    // ✅ Manual NFT ownership check
-    const knownTokenIds = [1, 2];
-    for (const id of knownTokenIds) {
-      try {
-        const owner = await nftContract.ownerOf(id);
-        console.log(`🔎 Token ${id} owner is ${owner}`);
-        if (owner.toLowerCase() === wallet.toLowerCase()) {
-          nftIds.push(id);
-        }
-      } catch (err) {
-        console.log(`ℹ️ Token ${id} error:`, err.message);
+    try {
+      const nftBalance = await nftContract.balanceOf(wallet);
+      const count = parseInt(nftBalance.toString());
+      for (let i = 0; i < count; i++) {
+        const tokenId = await nftContract.tokenOfOwnerByIndex(wallet, i);
+        nftIds.push(Number(tokenId));
       }
+    } catch (err) {
+      console.error('❌ NFT enumeration failed:', err.message);
     }
 
     return res.status(200).json({ wallet, balance, nftIds });
