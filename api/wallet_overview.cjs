@@ -6,7 +6,7 @@ const {
   RPC_URL_MAINNET,
   PRIVATE_KEY_MAINNET,
   GCC_TOKEN_CONTRACT,
-  NFT_CONTRACT_ADDRESS
+  NFT_CONTRACT_ADDRESS,
 } = process.env;
 
 const provider = new ethers.JsonRpcProvider(RPC_URL_MAINNET);
@@ -14,7 +14,7 @@ const signer = new ethers.Wallet(PRIVATE_KEY_MAINNET, provider);
 
 const tokenContract = new ethers.Contract(
   GCC_TOKEN_CONTRACT,
-  ['function balanceOf(address account) view returns (uint256)'],
+  ['function balanceOf(address) view returns (uint256)'],
   signer
 );
 
@@ -22,7 +22,7 @@ const nftContract = new ethers.Contract(
   NFT_CONTRACT_ADDRESS,
   [
     'function balanceOf(address owner) view returns (uint256)',
-    'function tokenOfOwnerByIndex(address owner, uint256 index) view returns (uint256)'
+    'function tokenOfOwnerByIndex(address owner, uint256 index) view returns (uint256)',
   ],
   signer
 );
@@ -33,7 +33,6 @@ module.exports = async function (req, res) {
 
     const authHeader = req.headers.authorization || '';
     const token = authHeader.replace('Bearer ', '').trim();
-
     const decoded = await admin.auth().verifyIdToken(token);
     const uid = decoded.uid;
 
@@ -48,6 +47,7 @@ module.exports = async function (req, res) {
     console.log(`🔎 Fetching balances for wallet: ${wallet}`);
 
     let balance = '0';
+    let nftCount = '0';
     let nftIds = [];
 
     try {
@@ -58,18 +58,18 @@ module.exports = async function (req, res) {
     }
 
     try {
-      const rawCount = await nftContract.balanceOf(wallet);
-      const count = rawCount.toNumber();
+      const rawNftCount = await nftContract.balanceOf(wallet);
+      nftCount = rawNftCount.toString();
 
-      for (let i = 0; i < count; i++) {
+      for (let i = 0; i < rawNftCount; i++) {
         const tokenId = await nftContract.tokenOfOwnerByIndex(wallet, i);
         nftIds.push(tokenId.toString());
       }
     } catch (err) {
-      console.error('❌ NFT token enumeration failed:', err.message);
+      console.error('❌ NFT enumeration failed:', err.message);
     }
 
-    return res.status(200).json({ wallet, balance, nftIds });
+    return res.status(200).json({ wallet, balance, nftCount, nftIds });
   } catch (err) {
     console.error('❌ Error in wallet_overview handler:', err.message || err);
     return res.status(500).json({ error: 'Failed to fetch wallet overview' });
