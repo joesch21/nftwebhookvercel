@@ -7,7 +7,6 @@ const {
   PRIVATE_KEY_MAINNET,
   GCC_TOKEN_CONTRACT,
   NFT_CONTRACT_ADDRESS,
-  OWNER_ADDRESS,
 } = process.env;
 
 const provider = new ethers.JsonRpcProvider(RPC_URL_MAINNET);
@@ -46,8 +45,9 @@ module.exports = async function (req, res) {
     console.log(`🔎 Fetching balances for wallet: ${wallet}`);
 
     let balance = '0';
-    let nftIds = [];
+    const nftIds = [];
 
+    // ✅ Token balance
     try {
       const rawBalance = await tokenContract.balanceOf(wallet);
       balance = ethers.formatUnits(rawBalance, 18);
@@ -55,24 +55,21 @@ module.exports = async function (req, res) {
       console.error('❌ Token balanceOf failed:', err.message);
     }
 
-    try {
-      const knownTokenIds = [1, 2];
-      for (const id of knownTokenIds) {
-        try {
-          const owner = await nftContract.ownerOf(id);
-          if (owner.toLowerCase() === wallet.toLowerCase()) {
-            nftIds.push(id);
-          }
-        } catch (e) {
-          console.warn(`⚠️ ownerOf failed for token #${id}:`, e.message);
+    // ✅ Manual NFT ownership check
+    const knownTokenIds = [1, 2];
+    for (const id of knownTokenIds) {
+      try {
+        const owner = await nftContract.ownerOf(id);
+        if (owner.toLowerCase() === wallet.toLowerCase()) {
+          nftIds.push(id);
         }
+      } catch (err) {
+        // Silently skip tokens not owned or nonexistent
+        console.log(`ℹ️ Token ${id} not owned or does not exist.`);
       }
-    } catch (err) {
-      console.error('❌ NFT token enumeration failed:', err.message);
     }
 
     return res.status(200).json({ wallet, balance, nftIds });
-
   } catch (err) {
     console.error('❌ Error in wallet_overview handler:', err.message || err);
     return res.status(500).json({ error: 'Failed to fetch wallet overview' });
