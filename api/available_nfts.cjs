@@ -26,7 +26,7 @@ const nftContract = new ethers.Contract(
 // ✅ Main route handler
 module.exports = async function (req, res) {
   try {
-    const tokenIds = [1, 2]; // Expandable
+    const tokenIds = [1, 2, 3, 4, 5, 6]; // Expandable
     const availability = {};
 
     for (const id of tokenIds) {
