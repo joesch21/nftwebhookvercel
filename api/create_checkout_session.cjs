@@ -1,4 +1,5 @@
 const Stripe = require('stripe');
+const nftMetadata = require('./nft_metadata.cjs'); // Make sure this file exists and exports the metadata
 
 if (!process.env.STRIPE_SECRET_KEY || !process.env.CLIENT_URL) {
   console.error('❌ Missing STRIPE_SECRET_KEY or CLIENT_URL', {
@@ -32,6 +33,12 @@ module.exports = async function (req, res) {
     return res.status(400).json({ error: 'Missing or invalid tokenId' });
   }
 
+  const metadata = nftMetadata[parsedTokenId];
+  if (!metadata || !metadata.priceUsd) {
+    console.warn(`⚠️ No metadata found for token ID ${parsedTokenId}`);
+    return res.status(400).json({ error: 'NFT metadata not found' });
+  }
+
   try {
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -50,7 +57,7 @@ module.exports = async function (req, res) {
               name: `GCC NFT - Token ${parsedTokenId}`,
               description: `Membership NFT Token ID ${parsedTokenId} with wallet delivery`,
             },
-            unit_amount: 100, // $1.00 USD in cents
+            unit_amount: metadata.priceUsd, // already in cents
           },
           quantity: 1,
         },
