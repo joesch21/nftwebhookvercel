@@ -18,6 +18,11 @@ app.post(
 // ✅ Parse JSON for all other routes
 app.use(express.json());
 
+// ✅ Inject reCAPTCHA secret globally (optional pattern)
+if (!process.env.RECAPTCHA_SECRET) {
+  console.warn('⚠️ Missing RECAPTCHA_SECRET in .env');
+}
+
 // ✅ Import API route handlers
 const createWallet = require('./api/create_wallet.cjs');
 const createCheckoutSession = require('./api/create_checkout_session.cjs');
@@ -33,7 +38,6 @@ app.post('/api/create_checkout_session', createCheckoutSession);
 app.post('/api/send_nft', sendNFT);
 app.post('/api/check_purchase', checkPurchase);
 app.post('/api/wallet_overview', walletOverview);
-
 
 // ✅ Start server
 const PORT = process.env.PORT || 3000;
