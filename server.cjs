@@ -6,7 +6,12 @@ const cors = require('cors');
 const app = express();
 
 // ✅ CORS should be applied first
-app.use(cors());
+app.use(cors({
+  origin: 'https://gcc-wallet.vercel.app',
+  methods: ['GET', 'POST'],
+  credentials: true
+}));
+
 
 // ✅ Stripe webhook route — MUST use raw body parser
 app.post(
