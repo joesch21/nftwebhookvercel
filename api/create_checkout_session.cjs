@@ -1,5 +1,6 @@
+// File: api/create_checkout_session.cjs
 const Stripe = require('stripe');
-const nftMetadata = require('./nft_metadata.cjs'); // Make sure this file exists and exports the metadata
+const nftMetadata = require('./nft_metadata.cjs');
 
 if (!process.env.STRIPE_SECRET_KEY || !process.env.CLIENT_URL) {
   console.error('❌ Missing STRIPE_SECRET_KEY or CLIENT_URL', {
@@ -16,15 +17,16 @@ module.exports = async function (req, res) {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  const { walletAddress, tokenId } = req.body;
+  const { wallet, tokenId } = req.body;
 
   console.log('📥 Incoming request to create checkout session');
-  console.log('🧾 Wallet Address:', walletAddress);
+  console.log('🧾 Wallet:', wallet);
   console.log('🆔 Token ID:', tokenId);
 
   const parsedTokenId = parseInt(tokenId, 10);
-  if (!walletAddress || typeof walletAddress !== 'string' || walletAddress.length !== 42) {
-    console.warn('⚠️ Invalid or missing wallet address');
+
+  if (!wallet || typeof wallet !== 'string' || wallet.length !== 42) {
+    console.warn('⚠️ Invalid or missing wallet');
     return res.status(400).json({ error: 'Missing or invalid wallet address' });
   }
 
@@ -43,10 +45,10 @@ module.exports = async function (req, res) {
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       mode: 'payment',
-      success_url: `${process.env.CLIENT_URL}/success?wallet=${encodeURIComponent(walletAddress)}&token=${parsedTokenId}`,
+      success_url: `${process.env.CLIENT_URL}/success?wallet=${encodeURIComponent(wallet)}&token=${parsedTokenId}`,
       cancel_url: `${process.env.CLIENT_URL}/cancel`,
       metadata: {
-        wallet: walletAddress,
+        wallet,
         tokenId: String(parsedTokenId),
       },
       line_items: [
@@ -57,14 +59,14 @@ module.exports = async function (req, res) {
               name: `GCC NFT - Token ${parsedTokenId}`,
               description: `Membership NFT Token ID ${parsedTokenId} with wallet delivery`,
             },
-            unit_amount: metadata.priceUsd, // already in cents
+            unit_amount: metadata.priceUsd, // Already in cents
           },
           quantity: 1,
         },
       ],
     });
 
-    console.log(`✅ Stripe Checkout session created for wallet ${walletAddress} (token ${parsedTokenId})`);
+    console.log(`✅ Stripe Checkout session created for wallet ${wallet} (token ${parsedTokenId})`);
     return res.status(200).json({ url: session.url });
   } catch (error) {
     console.error('❌ Stripe session creation failed:', error.message);
