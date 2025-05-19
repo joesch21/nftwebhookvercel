@@ -24,10 +24,11 @@ module.exports = async function (req, res) {
   console.log('🆔 Received tokenId:', tokenId);
 
   // ✅ Relaxed wallet check for test/dev use
-  if (!wallet || typeof wallet !== 'string' || wallet.length < 20) {
-    console.warn('⚠️ Missing or invalid wallet:', wallet);
-    return res.status(400).json({ error: 'Invalid wallet address format' });
+  if (!/^0x[a-fA-F0-9]{40}$/.test(wallet)) {
+  console.warn('⚠️ Invalid wallet format');
+  return res.status(400).json({ error: 'Invalid wallet format' });
   }
+
 
   const parsedTokenId = parseInt(tokenId, 10);
   if (isNaN(parsedTokenId) || parsedTokenId < 1) {
