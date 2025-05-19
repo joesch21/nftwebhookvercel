@@ -1,7 +1,6 @@
 const { Wallet } = require('ethers');
 const admin = require('firebase-admin');
 const { readFileSync } = require('fs');
-const fetch = require('node-fetch'); // ✅ For reCAPTCHA call
 
 // ✅ Load service account credentials from Render Secret File
 const serviceAccountPath = '/etc/secrets/firebase-service-account.json';
@@ -16,41 +15,10 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 
-// ✅ reCAPTCHA verification helper
-async function verifyCaptcha(token) {
-  const secret = process.env.RECAPTCHA_SECRET;
-  if (!secret) {
-    console.error('❌ RECAPTCHA_SECRET not set in environment variables');
-    return false;
-  }
-
-  const response = await fetch('https://www.google.com/recaptcha/api/siteverify', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: `secret=${secret}&response=${token}`,
-  });
-
-  const data = await response.json();
-  console.log('🔎 CAPTCHA verification response:', data);
-  return data.success;
-}
-
 module.exports = async function (req, res) {
   if (req.method !== 'POST') {
     console.warn('⚠️ Received non-POST request to /api/create_wallet');
     return res.status(405).json({ error: 'Method Not Allowed' });
-  }
-
-  const captchaToken = req.body.captchaToken;
-  if (!captchaToken) {
-    console.warn('⚠️ Missing CAPTCHA token in request');
-    return res.status(400).json({ error: 'Missing CAPTCHA token' });
-  }
-
-  const isHuman = await verifyCaptcha(captchaToken);
-  if (!isHuman) {
-    console.warn('❌ CAPTCHA verification failed');
-    return res.status(403).json({ error: 'CAPTCHA verification failed' });
   }
 
   const authHeader = req.headers.authorization || '';
