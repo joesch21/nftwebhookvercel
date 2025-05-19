@@ -12,6 +12,11 @@ if (!process.env.STRIPE_SECRET_KEY || !process.env.CLIENT_URL) {
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
+// ✅ Reusable wallet validator (BNB/EVM compliant)
+function isValidWallet(wallet) {
+  return /^0x[a-fA-F0-9]{40}$/.test(wallet);
+}
+
 module.exports = async function (req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
@@ -23,10 +28,10 @@ module.exports = async function (req, res) {
   console.log('🧾 Received wallet:', wallet);
   console.log('🆔 Received tokenId:', tokenId);
 
-  // ✅ Relaxed wallet check for test/dev use
-  if (!wallet || typeof wallet !== 'string' || wallet.length < 20) {
-    console.warn('⚠️ Missing or invalid wallet:', wallet);
-    return res.status(400).json({ error: 'Invalid wallet address format' });
+  // 🔒 Enforce strict wallet format
+  if (!isValidWallet(wallet)) {
+    console.warn('🚫 Invalid wallet format:', wallet);
+    return res.status(400).json({ error: 'Invalid wallet format' });
   }
 
   const parsedTokenId = parseInt(tokenId, 10);
@@ -59,14 +64,14 @@ module.exports = async function (req, res) {
               name: `GCC NFT - Token ${parsedTokenId}`,
               description: `Membership NFT Token ID ${parsedTokenId} with wallet delivery`,
             },
-            unit_amount: metadata.priceUsd, // price in cents
+            unit_amount: metadata.priceUsd,
           },
           quantity: 1,
         },
       ],
     });
 
-    console.log(`✅ Stripe session created: ${session.id}`);
+    console.log(`✅ Stripe Checkout session created: ${session.id}`);
     return res.status(200).json({ url: session.url });
   } catch (error) {
     console.error('❌ Stripe session creation failed:', error.message);
