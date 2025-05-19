@@ -19,25 +19,25 @@ module.exports = async function (req, res) {
 
   const { wallet, tokenId } = req.body;
 
-  console.log('📥 Incoming request to create checkout session');
-  console.log('🧾 Wallet:', wallet);
-  console.log('🆔 Token ID:', tokenId);
+  console.log('📥 Incoming checkout session request');
+  console.log('🧾 Received wallet:', wallet);
+  console.log('🆔 Received tokenId:', tokenId);
 
-  const parsedTokenId = parseInt(tokenId, 10);
-
-  if (!wallet || typeof wallet !== 'string' || wallet.length !== 42) {
-    console.warn('⚠️ Invalid or missing wallet');
-    return res.status(400).json({ error: 'Missing or invalid wallet address' });
+  // ✅ Relaxed wallet check for test/dev use
+  if (!wallet || typeof wallet !== 'string' || wallet.length < 20) {
+    console.warn('⚠️ Missing or invalid wallet:', wallet);
+    return res.status(400).json({ error: 'Invalid wallet address format' });
   }
 
-  if (isNaN(parsedTokenId) || parsedTokenId < 0) {
-    console.warn('⚠️ Invalid tokenId');
-    return res.status(400).json({ error: 'Missing or invalid tokenId' });
+  const parsedTokenId = parseInt(tokenId, 10);
+  if (isNaN(parsedTokenId) || parsedTokenId < 1) {
+    console.warn('⚠️ Invalid token ID:', tokenId);
+    return res.status(400).json({ error: 'Invalid tokenId' });
   }
 
   const metadata = nftMetadata[parsedTokenId];
   if (!metadata || !metadata.priceUsd) {
-    console.warn(`⚠️ No metadata found for token ID ${parsedTokenId}`);
+    console.warn(`⚠️ No metadata for token ID ${parsedTokenId}`);
     return res.status(400).json({ error: 'NFT metadata not found' });
   }
 
@@ -59,14 +59,14 @@ module.exports = async function (req, res) {
               name: `GCC NFT - Token ${parsedTokenId}`,
               description: `Membership NFT Token ID ${parsedTokenId} with wallet delivery`,
             },
-            unit_amount: metadata.priceUsd, // Already in cents
+            unit_amount: metadata.priceUsd, // price in cents
           },
           quantity: 1,
         },
       ],
     });
 
-    console.log(`✅ Stripe Checkout session created for wallet ${wallet} (token ${parsedTokenId})`);
+    console.log(`✅ Stripe session created: ${session.id}`);
     return res.status(200).json({ url: session.url });
   } catch (error) {
     console.error('❌ Stripe session creation failed:', error.message);
