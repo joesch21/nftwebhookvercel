@@ -5,13 +5,13 @@ const cors = require('cors');
 
 const app = express();
 
-// ✅ CORS should be applied first
+// ✅ Apply CORS globally to all routes and preflight
 app.use(cors({
   origin: 'https://gcc-wallet.vercel.app',
   methods: ['GET', 'POST'],
   credentials: true
 }));
-
+app.options('*', cors()); // Handle preflight requests
 
 // ✅ Stripe webhook route — MUST use raw body parser
 app.post(
@@ -23,7 +23,7 @@ app.post(
 // ✅ Parse JSON for all other routes
 app.use(express.json());
 
-// ✅ Inject reCAPTCHA secret globally (optional pattern)
+// ✅ Warn if reCAPTCHA secret is missing
 if (!process.env.RECAPTCHA_SECRET) {
   console.warn('⚠️ Missing RECAPTCHA_SECRET in .env');
 }
