@@ -31,6 +31,7 @@ async function verifyCaptcha(token) {
   });
 
   const data = await response.json();
+  console.log('🔎 CAPTCHA verification response:', data);
   return data.success;
 }
 
