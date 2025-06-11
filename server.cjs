@@ -7,7 +7,10 @@ const app = express();
 
 // ✅ Apply CORS globally to all routes and preflight
 app.use(cors({
-  origin: 'https://gcc-wallet.vercel.app',
+  origin: [
+  'https://gcc-wallet.vercel.app',
+  'https://www.gcc-bsc.online/'
+  ],
   methods: ['GET', 'POST'],
   credentials: true
 }));
