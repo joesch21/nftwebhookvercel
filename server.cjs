@@ -9,7 +9,7 @@ const app = express();
 app.use(cors({
   origin: [
   'https://gcc-wallet.vercel.app',
-  'https://www.gcc-bsc.online/'
+  'https://www.gcc-bsc.online'
   ],
   methods: ['GET', 'POST'],
   credentials: true
