@@ -35,6 +35,8 @@ const sendNFT = require('./api/send_nft.cjs');
 const checkPurchase = require('./api/check_purchase.cjs');
 const checkAvailability = require('./api/available_nfts.cjs');
 const walletOverview = require('./api/wallet_overview.cjs');
+const condorChat = require('./api/condor_chat.cjs');
+
 
 // ✅ API Routes
 app.get('/api/available_nfts', checkAvailability);
@@ -43,6 +45,8 @@ app.post('/api/create_checkout_session', createCheckoutSession);
 app.post('/api/send_nft', sendNFT);
 app.post('/api/check_purchase', checkPurchase);
 app.post('/api/wallet_overview', walletOverview);
+app.post('/api/condor_chat', condorChat);
+
 
 // ✅ Start server
 const PORT = process.env.PORT || 3000;
