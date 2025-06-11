@@ -2,6 +2,8 @@
 const fetch = require('node-fetch');
 require('dotenv').config();
 
+console.log("🔑 Loaded OpenAI key:", process.env.OPENAI_API_KEY?.slice(0, 5), '...');
+
 module.exports = async function condorChat(req, res) {
   const userMessage = req.body.message;
 
